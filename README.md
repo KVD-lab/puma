@@ -17,7 +17,7 @@
  15 * NCBI BLAST+ 2.7.x
  16 * MEME, FIMO (https://meme-suite.org/)
  17 * MUSCLE (https://www.drive5.com/muscle/)
- 18 # puma
+ 18
 ~
 ~
 ~
