@@ -1,4 +1,4 @@
-# PuMA Release 1.0 
+# PuMA Release 0.1-beta 
 
 Papillomavirus genome annotation tool
 
