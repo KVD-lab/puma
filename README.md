@@ -20,7 +20,9 @@ Please install the following:
 #Formatting Input FASTA File
 
 ">Short name|Full Name"
+
 Sequence
 
 Short name is the abbreviation you want for output files (Ex HPV16)
+
 Full name is what will be printed to the screen (Ex Human papillomavirus 16)
