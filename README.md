@@ -15,3 +15,14 @@ Please install the following:
 * NCBI BLAST+ 2.7.x
 * MEME, FIMO (https://meme-suite.org/)
 * MUSCLE (https://www.drive5.com/muscle/)
+
+
+
+#Formatting Input FASTA File
+
+>Short name|Full Name
+Sequence....
+
+
+Short name is the abbreviation you want for output files (Ex HPV16)
+Full name is what will be printed to the screen (Ex Human papillomavirus 16)
