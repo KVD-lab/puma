@@ -1,0 +1,7 @@
+# 0-order Markov frequencies from file sequencesTOTAL_URR.fa
+# seqs: 353    min: 184    max: 1746    avg: 589.0    sum: 207901    alph: DNA
+# order 0
+A 2.902e-01
+C 2.098e-01
+G 2.098e-01
+T 2.902e-01
