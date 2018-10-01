@@ -20,7 +20,7 @@ Please install the following:
 
 #Formatting Input FASTA File
 
->Short name|Full Name
+">Short name|Full Name"
 Sequence....
 
 
