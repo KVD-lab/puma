@@ -14,19 +14,13 @@ Please install the following:
 * BioPython
 * NCBI BLAST+ 2.7.x
 * MEME, FIMO (https://meme-suite.org/)
-<<<<<<< HEAD
+* MUSCLE (https://www.drive5.com/muscle)
 * MUSCLE (https://www.drive5.com/muscle/)
-=======
-* MUSCLE (https://www.drive5.com/muscle/)e
->>>>>>> 6262e04b77a1a68d647cfdce4b5717fd4aa44c66
-
-
 
 #Formatting Input FASTA File
 
 >Short name|Full Name
 Sequence
-
 
 Short name is the abbreviation you want for output files (Ex HPV16)
 Full name is what will be printed to the screen (Ex Human papillomavirus 16)
