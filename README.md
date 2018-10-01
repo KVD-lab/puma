@@ -19,8 +19,7 @@ Please install the following:
 
 #Formatting Input FASTA File
 
-">Short name|Full Name"
-
+">Short name|Full Name"\n
 Sequence
 
 Short name is the abbreviation you want for output files (Ex HPV16)
