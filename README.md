@@ -18,6 +18,7 @@ Please install the following:
 * MUSCLE (https://www.drive5.com/muscle/)
 
 #Formatting Input FASTA File
+    
     >Short name|Full Name
     Sequence
 
