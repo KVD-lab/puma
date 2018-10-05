@@ -392,6 +392,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt):
 
     elif startE2_nt == "No blast results for unkown E2":
         E8_E2['E8^E2'] = [0,0,0,0,"No blast results for unkown E2","No blast results for unkown E2"]
+        return E8_E2
 
     for stop in re.finditer('aggta', E1_seq):
         stopE8List.append(stop.start())
