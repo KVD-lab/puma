@@ -390,6 +390,9 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt):
         E8_E2['E8^E2'] = False
         return E8_E2
 
+    elif startE2_nt == "No blast results for unkown E2":
+        E8_E2['E8^E2'] = [0,0,0,0,"No blast results for unkown E2","No blast results for unkown E2"]
+
     for stop in re.finditer('aggta', E1_seq):
         stopE8List.append(stop.start())
     actualSites = []
@@ -486,7 +489,7 @@ def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
 
     if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
         print('No BLAST output "{}" (must have failed)'.format(blast_out))
-        startE2_nt = 15
+        startE2_nt = "No blast results for unkown E2"
         return startE2_nt
 
     blast_options = []
