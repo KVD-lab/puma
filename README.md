@@ -1,5 +1,7 @@
 # PuMA Release 0.2-beta 
 
+Release 0.2-beta (11/5/18) has an updated method of finding E8^E2
+
 Papillomavirus genome annotation tool
 
 Authors: Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
@@ -27,4 +29,4 @@ Short name is the abbreviation you want for output files (Ex HPV16)
 Full name is what will be printed to the screen (Ex Human papillomavirus 16)
 
 
-#Release 0.2-beta (11/5/18) has an updated method of finding E8^E2
+
