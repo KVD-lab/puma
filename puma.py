@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 #University of Arizona, KVD Lab
-# PuMA 0.1-beta 10/1/2018
+# PuMA 0.2-beta 11/5/2018
 
 from distutils.spawn import find_executable
 from Bio import SeqIO, GenBank, AlignIO
@@ -378,67 +378,165 @@ def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt):
 #
 #Finds E8^E2
 #
-def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt):
+def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt, out_dir, data_dir):
     E8_E2 = {}
     E1_seq = str(E1_whole[2])
-    stopE8List = []
+    E1_trans = str(E1_whole[3])
     genome = str(genome).lower()
-    donor_options = ['aggtg','aggtt','agaga','aggga']
+    startE8List = []
 
     if startE2_nt == False:
 
         E8_E2['E8^E2'] = False
         return E8_E2
 
-    elif startE2_nt == "No blast results for unkown E2":
-        E8_E2['E8^E2'] = [0,0,0,0,"No blast results for unkown E2","No blast results for unkown E2"]
-        return E8_E2
+    E8_dir = os.path.join(out_dir, 'E8')
+    if not os.path.isdir(E8_dir):
+        os.makedirs(E8_dir)
 
-    for stop in re.finditer('aggta', E1_seq):
-        stopE8List.append(stop.start())
-    actualSites = []
-    outOfRange = 0
-    for stop in stopE8List:
-        if stop > 700 or stop < 20:
-            outOfRange += 1
+    blast_subject = os.path.join(data_dir, 'E1_blast.fa')
+    blast_out = os.path.join(E8_dir, 'blast_result.tab')
 
-    if len(stopE8List) == outOfRange:
-        stopE8List.clear()
-        for sites in donor_options:
-            if sites in E1_seq:
-                stopE8List.append(re.search(sites, E1_seq).start())
-        stopE8List = sorted(stopE8List)  # splice donor site list
-    for stop in stopE8List:
-        if stop > 325 and stop < 600:
-            actualSites.append(stop)
+    if os.path.isfile(blast_out):
+        os.remove(blast_out)
+
+    query_file = os.path.join(E8_dir, 'query.fa')
+
+    with open(query_file, 'a') as query:
+        query.write('>{}\n'.format(ID))
+        query.write(E1_trans)
+
+    cmd = blastp(query=query_file,
+                 subject=blast_subject,
+                 evalue=1e-10,
+                 outfmt=6,
+                 out=blast_out)
+
+    stdout, stderr = cmd()
+
+    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
+        print('No BLAST output "{}" (must have failed)'.format(blast_out))
+        startE2_nt = 15
+        return startE2_nt
+
+    blast_options = []
+    with open(blast_out) as blast_file:
+        blast_result = csv.reader(blast_file, delimiter='\t')
+        for row in blast_result:
+            blast_options.append(row[1])
+    blast_options = blast_options[0:1]
+    splice_sites = []
+    E8_stop = []
+    for options in blast_options:
+        query = options
+        known_E8 = {}
+        csv_database = os.path.join(data_dir, 'all_pave.csv')
+
+        with open(csv_database, 'r') as csvfile:
+            read = csv.DictReader(csvfile, ('accession', 'gene', 'positions', 'seq'))
+            for row in read:
+                if row['accession'] == query and row['gene'] == 'E8^E2':
+                    E8_positions = row['positions']
+                if row["accession"] == query and row["gene"] == 'E1':
+                    known_E8[query] = str(row['seq']).lower()
+                    known_E8_stop = str(row["positions"])
+                if row['accession'] == query and row['gene'] == 'CG':
+                    known_CG = str(row['seq']).lower()
+
+        try:
+            E8_stop_genome = E8_positions.split('+')[0]
+            E8_stop_genome = E8_stop_genome.split('(')[1]
+            #print(E8_stop_genome)
 
 
-    actualSites = list(sorted(set(actualSites)))
+            E8_stop_genome = int(str(E8_stop_genome).split('..')[1])
+
+            known_E8_stop = int(known_E8_stop.split('..')[0])
+
+            E8_stop_known = (E8_stop_genome - known_E8_stop)
+
+            splice_sites.append(E8_stop_known)
+
+        except UnboundLocalError:
+            stopE8_nt = False
+            return stopE8_nt
+
+        unaligned = os.path.join(E8_dir, 'unaligned.fa')
+        aligned = os.path.join(E8_dir, 'aligned.fa')
+
+        if os.path.isfile(unaligned):
+            os.remove(unaligned)
+
+        if os.path.isfile(aligned):
+            os.remove(aligned)
+
+        for key in known_E8:
+            with open(unaligned, 'a') as sequence_file:
+                sequence_file.write(">{}\n".format(ID))
+                sequence_file.write("{}\n".format(E1_seq))
+                sequence_file.write(">{}\n".format(key))
+                sequence_file.write("{}\n".format(known_E8[key]))
+
+        cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
+
+        stdout, stderr = cline()
+
+        align_seq = []
+        for aln in AlignIO.read(aligned, 'fasta'):
+            align_seq.append(aln.seq)
+
+        unknown_seq = str(align_seq[0]).lower()
+        known_seq = str(align_seq[1]).lower()
+
+        j = 0
+        aligned_E8_stop = 0
 
 
-    if len(actualSites) == 0:
-        E8_E2['E8^E2'] = False
-        return E8_E2
+        for position in known_seq:
+            aligned_E8_stop = aligned_E8_stop + 1
+            #print(aligned_E8_stop)
+            if position.lower() in ['a', 'c', 't', 'g']:
+                j = j + 1
+                if j == E8_stop_known:
+                    break
 
-        if startE2_nt != False:
-            stopE2_nt = E2_whole[1]
+        E8_stop.append(aligned_E8_stop)
 
-    for position in actualSites:
-        stopE8 = position
-        search_seq = E1_seq[:stopE8]
-        i = len(search_seq)
-        end_seq = i
+    aligned_E8_stop = E8_stop[-1]
 
-        while(i>= 0 and i > end_seq - 70):
-            if search_seq[i-3:i] == 'atg':
-                E8_seq = search_seq[i - 3:]
-                startE8 = re.search(E8_seq, E1_seq).start()
-                break
-            else:
-                i = i - 3
-        continue
+    search_seq = unknown_seq[aligned_E8_stop:aligned_E8_stop + 50].replace('-', '')
 
-    startE8_nt = startE8 + E1_whole[0]
+    stopE8_nt = (re.search(search_seq, str(genome).lower()).start()) + 1
+
+    stopE8 = (stopE8_nt - E1_whole[0]) - 1
+    tempStart = stopE8 - 70
+
+    search_seq = E1_seq[tempStart:stopE8]
+
+    for match in re.finditer('atg', search_seq):
+        startE8List.append(match.start() + tempStart)
+
+    for i in range(0, len(startE8List)):
+        try:
+            if (stopE8 - startE8List[i]) < 15:
+                del startE8List[i]
+            elif (stopE8 - startE8List[i]) > 65:
+                del startE8List[i]
+        except IndexError:
+            break
+
+
+    for i in range(0, len(startE8List)):
+        try:
+            testStart = startE8List[i] + E1_whole[0]
+            check_seq = Seq(genome[testStart - 1:stopE8_nt]).translate()
+            print(check_seq)
+            if "*" in check_seq:
+                del startE8List[i]
+        except IndexError:
+            break
+    startE8_nt = startE8List[0] + E1_whole[0]
+
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
 
     if startE2_nt != False:
@@ -913,7 +1011,8 @@ def main():
 
     E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, Origseq, start_splice_site)
 
-    E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, Origseq, start_splice_site)
+    E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, Origseq, start_splice_site,
+                      out_dir, data_dir)
 
     if E8_E2['E8^E2'] == False:
         pass
