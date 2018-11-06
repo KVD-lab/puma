@@ -1,12 +1,14 @@
 # PuMA Release 0.2-beta 
 
-Release 0.2-beta (11/5/18) has an updated method of finding E8^E2
+
 
 Papillomavirus genome annotation tool
 
 Authors: Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
 
 University of Arizona
+
+Release 0.2-beta (11/5/18) has an updated method of finding E8^E2
 
 #Dependencies 
 
