@@ -191,26 +191,26 @@ def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
     cline = (fimo_cmd.format(fimo_exe, fimo_dir, background ,
                              motif, tmp))
+    print(cline)
 
     os.system(str(cline))
 
-    fimo_out = os.path.join(fimo_dir, 'fimo.txt')
+    fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
 
     if not os.path.isfile(fimo_out):
         print('Failed to create fimo out "{}"'.format(fimo_out))
         return
 
-    for column in csv.reader(open(fimo_out, "rU"),
-                             delimiter='\t'):
-        if column[3] == 'start':
-            startListURR = []
-        else:
-            startListURR.append(column[3])
+    startListURR = []
+    with open(fimo_out, "rU") as csvfile:
+        reader = csv.DictReader(csvfile, delimiter='\t')
+        for row in reader:
+            start = row['start']
+            if not start is None:
+                startListURR.append(start)
 
     startURR = int(startListURR[0])
     genomestart = (startURR + URRstart)
-
-
 
     if genomestart > genomeLength:
         genomestart = genomestart - genomeLength
@@ -268,17 +268,19 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
 
     os.system(str(cline))
 
-    fimo_out = os.path.join(fimo_dir, 'fimo.txt')
+    fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
 
     if not os.path.isfile(fimo_out):
         print('Failed to create fimo out "{}"'.format(fimo_out))
         return
 
-    for column in csv.reader(open(fimo_out, "rU"), delimiter='\t'):
-        if column[3] == 'start':
-            startListURR = []
-        else:
-            startListURR.append(column[3])
+    startListURR = []
+    with open(fimo_out, "rU") as csvfile:
+        reader = csv.DictReader(csvfile, delimiter='\t')
+        for row in reader:
+            start = row['start']
+            if not start is None:
+                startListURR.append(row['start'])
 
     startListURR = list(map(int, set(startListURR)))
 
