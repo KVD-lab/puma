@@ -191,7 +191,6 @@ def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
     cline = (fimo_cmd.format(fimo_exe, fimo_dir, background ,
                              motif, tmp))
-    print(cline)
 
     os.system(str(cline))
 
@@ -532,7 +531,6 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt, out_dir, data_dir):
         try:
             testStart = startE8List[i] + E1_whole[0]
             check_seq = Seq(genome[testStart - 1:stopE8_nt]).translate()
-            print(check_seq)
             if "*" in check_seq:
                 del startE8List[i]
         except IndexError:
