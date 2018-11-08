@@ -169,6 +169,7 @@ def blast_proteins(genome,min_prot_len,evalue,data_dir, out_dir):
 def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
     genomeLength = len(genome)
     E1BS = {}  # Storing E1BS
+    startListURR = []
     startURR = 0
 
     tmp = os.path.join(out_dir, "puma_urr.fa")
@@ -200,7 +201,6 @@ def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
         print('Failed to create fimo out "{}"'.format(fimo_out))
         return
 
-    startListURR = []
     with open(fimo_out, "rU") as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
         for row in reader:
@@ -273,7 +273,6 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
         print('Failed to create fimo out "{}"'.format(fimo_out))
         return
 
-    startListURR = []
     with open(fimo_out, "rU") as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
         for row in reader:
