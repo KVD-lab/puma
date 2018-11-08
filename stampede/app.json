@@ -1,0 +1,104 @@
+{
+    "name": "puma",
+    "version": "0.1.0",
+    "shortDescription": "Papillomavirus genome annotation tool",
+    "longDescription": "",
+    "available": true,
+    "checkpointable": false,
+    "defaultMemoryPerNode": 192,
+    "defaultProcessorsPerNode": 48,
+    "defaultMaxRunTime": "12:00:00",
+    "defaultNodeCount": 1,
+    "defaultQueue": "normal",
+    "deploymentPath": "kyclark/applications/puma-0.1.0/stampede",
+    "deploymentSystem": "data.iplantcollaborative.org",
+    "executionSystem": "tacc-stampede2-kyclark",
+    "executionType": "HPC",
+    "helpURI": "http://github.com/KVD-lab/puma",
+    "label": "PuMA",
+    "parallelism": "serial",
+    "templatePath": "template.sh",
+    "testPath": "test.sh",
+    "modules": [
+        "load tacc-singularity"
+    ],
+    "tags": [
+        "imicrobe",
+        "hpv",
+        "genome annotation"
+    ],
+    "ontology": [
+        "http://sswapmeet.sswap.info/agave/apps/Application"
+    ],
+    "inputs": [
+        {
+            "id": "INPUT_FILE",
+            "value": {
+                "default": "",
+                "order": 1,
+                "validator": "",
+                "required": true,
+                "visible": true,
+                "enquote": false
+            },
+            "semantics": {
+                "ontology": [
+                    "http://sswapmeet.sswap.info/mime/application/X-bam"
+                ],
+                "minCardinality": 1,
+                "maxCardinality": -1,
+                "fileTypes": [
+                    "raw-0"
+                ]
+            },
+            "details": {
+                "description": "FASTA-formatted PV genome sequence",
+                "label": "Input file",
+                "argument": "-i ",
+                "repeatArgument": false,
+                "showArgument": true
+            }
+        }
+    ],
+    "parameters": [
+        {
+            "id": "EVALUE",
+            "value": {
+                "default": "0.00001",
+                "type": "string",
+                "order": 1,
+                "required": true,
+                "visible": true,
+                "enquote": false,
+                "validator": ""
+            },
+            "details": {
+                "description": "BLAST e-value",
+                "label": "E-value",
+                "argument": "-e ",
+                "repeatArgument": false,
+                "showArgument": true
+            }
+        },
+        {
+            "id": "MIN_PROT_LEN",
+            "value": {
+                "default": "25",
+                "type": "string",
+                "order": 2,
+                "required": true,
+                "visible": true,
+                "enquote": false,
+                "validator": ""
+            },
+            "details": {
+                "description": "",
+                "label": "Min. protein length",
+                "argument": "-m ",
+                "repeatArgument": false,
+                "showArgument": true
+            }
+        }
+    ],
+    "outputs": []
+}
