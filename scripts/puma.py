@@ -187,7 +187,7 @@ def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
         os.makedirs(fimo_dir)
 
     background = os.path.join(data_dir, 'background_model_E1BS.txt')
-    motif = os.path.join(data_dir, 'E1BS_Motif.txt')
+    motif = os.path.join(data_dir, 'E1BS_motif.txt')
 
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
     cline = (fimo_cmd.format(fimo_exe, fimo_dir, background ,
