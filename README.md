@@ -1,6 +1,6 @@
 # PuMA Release 0.2-beta 
 
-
+**PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
 
 Papillomavirus genome annotation tool
 
