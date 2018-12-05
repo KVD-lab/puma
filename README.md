@@ -4,7 +4,9 @@
 
 Papillomavirus genome annotation tool
 
-Authors: Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
+# Authors
+
+Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
 
 University of Arizona
 
