@@ -27,7 +27,7 @@ Full name is what will be printed to the screen (Ex Human papillomavirus 16)
 Please install the following:
 
 * Python 3.x
-* BioPython
+* Biopython
 * NCBI BLAST+ 2.7.x
 * MEME, FIMO (https://meme-suite.org/)
 * MUSCLE (https://www.drive5.com/muscle)
