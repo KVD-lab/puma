@@ -18,9 +18,9 @@ Release 0.2-beta (11/5/18) has an updated method of finding E8^E2
     Sequence
 
 
-Short name is the abbreviation you want for output files (Ex HPV16)
+Short name is the abbreviation you want for output files (e.g. HPV16)
 
-Full name is what will be printed to the screen (Ex Human papillomavirus 16)
+Full name is what will be printed to the screen (e.g. Human papillomavirus 16)
 
 # Dependencies 
 
