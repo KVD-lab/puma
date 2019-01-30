@@ -1,4 +1,4 @@
-# PuMA Release 0.2-beta 
+# PuMA Release 0.3-beta 
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
 
@@ -8,9 +8,9 @@ Papillomavirus genome annotation tool
 
 Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
 
-University of Arizona
+University of Arizona, KVD Lab & Hurwitz Lab
 
-Release 0.2-beta (11/5/18) has an updated method of finding E8^E2
+Release 0.3-beta (1/29/19) has an updated method of finding E8^E2
 
 # Formatting Input FASTA File
     
