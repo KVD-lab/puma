@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
-#University of Arizona, KVD Lab
-# PuMA 0.2-beta 11/5/2018
+#University of Arizona, KVD Lab & Hurwitz Lab
+# PuMA 0.3-beta 1/29/2019
 
 from distutils.spawn import find_executable
 from Bio import SeqIO, GenBank, AlignIO
@@ -275,27 +275,36 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
 
     with open(fimo_out, "rU") as csvfile:
         reader = csv.DictReader(csvfile, delimiter='\t')
-        for row in reader:
-            start = row['start']
-            if not start is None:
-                startListURR.append(row['start'])
+        try:
+            for row in reader:
+                start = row['start']
+                if not start is None:
+                    startListURR.append(row['start'])
 
-    startListURR = list(map(int, set(startListURR)))
+            startListURR = list(map(int, set(startListURR)))
 
-    startListGenome = list(map(int, startListGenome))
+            startListGenome = list(map(int, startListGenome))
 
-    for i in range(0, len(startListURR), 1):
-        genomestart = startListURR[i]
-        genomestart = (genomestart + URRstart)
-        if genomestart > genomeLength:
-            genomestart = genomestart - genomeLength
-            startListGenome.append(genomestart-1)
-        else:
-            startListGenome.append(genomestart-1)
+            for i in range(0, len(startListURR), 1):
+                genomestart = startListURR[i]
+                genomestart = (genomestart + URRstart)
+                if genomestart > genomeLength:
+                    genomestart = genomestart - genomeLength
+                    startListGenome.append(genomestart-1)
+                else:
+                    startListGenome.append(genomestart-1)
 
-    E2BS['E2BS'] = startListGenome
+            E2BS['E2BS'] = startListGenome
 
-    return E2BS
+            return E2BS
+
+        except KeyError:
+
+            E2BS['E2BS'] = ["No E2BS found"]
+            return E2BS
+
+
+
 # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
@@ -330,77 +339,23 @@ def find_E4(E2, genome):
 
 # ----------------------------------------------------------------------------------------
 #
-#Finds E1^E4
+#Finds the blast results for E1 and E8
 #
-def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt):
-    E1_E4 = {}
-    genome = str(genome).lower()
-    startListE2 = []
-    E2_seq = str(E2_whole[2])
-
-    donor_options = ['aggta','aggtg', 'cggta','agagt']
-    stopE1_options = []
-
-
-
-    try:
-        E1_seq = str(E1_whole[2])
-        for sites in donor_options:
-            if sites in E1_seq:
-                stopE1_options.append(re.search(sites, E1_seq).start())
-        stopE1_options = sorted(stopE1_options)
-        stopE1 = stopE1_options[0]
-        stopE1 = stopE1 + 2
-        start_E1_nt = E1_whole[0]
-        stop_E1_nt = (stopE1 - 2) + 1 + E1_whole[0]
-
-
-        if start_E4_nt == False:
-            E1_E4['E1^E4'] = False
-            return E1_E4
-        else:
-
-            whole_E4 = find_E4(E2_seq, genome)
-            stop_E4_nt = whole_E4['E4'][1] - 1
-
-            E1_E4_seq = str(genome[start_E1_nt-1:stop_E1_nt]+ genome[
-            start_E4_nt:stop_E4_nt])
-            E1_E4_trans = Seq(E1_E4_seq).translate()[:-1]
-            E1_E4['E1^E4'] = [start_E1_nt,stop_E1_nt,start_E4_nt + 1,stop_E4_nt,E1_E4_seq,
-                E1_E4_trans]
-            return E1_E4
-    except IndexError:
-        E1_E4['E1^E4'] = [0, 0, 0, 0, 'Function Crashed','',genome[start_E1_nt:stop_E1_nt]]
-        return E1_E4
-# ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
-#
-#Finds E8^E2
-#
-def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt, out_dir, data_dir):
-    E8_E2 = {}
-    E1_seq = str(E1_whole[2])
+def find_blastResults_E1E8(E1_whole,ID, out_dir,data_dir):
     E1_trans = str(E1_whole[3])
-    genome = str(genome).lower()
-    startE8List = []
 
-    if startE2_nt == False:
 
-        E8_E2['E8^E2'] = False
-        return E8_E2
+    blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
+    if not os.path.isdir(blastE1E8_dir):
+        os.makedirs(blastE1E8_dir)
 
-    E8_dir = os.path.join(out_dir, 'E8')
-    if not os.path.isdir(E8_dir):
-        os.makedirs(E8_dir)
-
-    blast_subject = os.path.join(data_dir, 'E1_blast.fa')
-    blast_out = os.path.join(E8_dir, 'blast_result.tab')
+    blast_subject = os.path.join(data_dir, 'E1E8_blast.fa')
+    blast_out = os.path.join(blastE1E8_dir, 'blast_result.tab')
 
     if os.path.isfile(blast_out):
         os.remove(blast_out)
 
-    query_file = os.path.join(E8_dir, 'query.fa')
+    query_file = os.path.join(blastE1E8_dir, 'query.fa')
 
     with open(query_file, 'a') as query:
         query.write('>{}\n'.format(ID))
@@ -416,8 +371,153 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt, out_dir, data_dir):
 
     if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
         print('No BLAST output "{}" (must have failed)'.format(blast_out))
-        startE2_nt = 15
-        return startE2_nt
+        blastResult = False
+        return blastResult
+
+    else:
+        blastResult = True
+    return blastResult
+# ----------------------------------------------------------------------------------------
+#
+#Finds E1^E4
+#
+def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt,blastE1E8_dir,blastResult, data_dir):
+    E1_E4 = {}
+    genome = str(genome).lower()
+    E2_seq = str(E2_whole[2])
+    E1_seq = str(E1_whole[2])
+
+    if start_E4_nt == False:
+        E1_E4['E1^E4'] = False
+        return E1_E4
+
+    if blastResult:
+        blast_out = os.path.join(blastE1E8_dir, 'blast_result.tab')
+    else:
+        E1_E4['E1^E4'] = [0, 0, 0, 0, 'No Blast Output','']
+        return E1_E4
+
+    blast_options = []
+    with open(blast_out) as blast_file:
+        blast_result = csv.reader(blast_file, delimiter='\t')
+        for row in blast_result:
+            blast_options.append(row[1])
+    blast_options = blast_options[0:1]
+    splice_sites = []
+    E1_stop = []
+    for options in blast_options:
+        query = options
+        known_E1 = {}
+        csv_database = os.path.join(data_dir, 'all_pave.csv')
+
+        with open(csv_database, 'r') as csvfile:
+            read = csv.DictReader(csvfile, ('accession', 'gene', 'positions', 'seq'))
+            for row in read:
+                if row['accession'] == query and row['gene'] == 'E1^E4':
+                    E1_positions = row['positions']
+                if row["accession"] == query and row["gene"] == 'E1':
+                    known_E1[query] = str(row['seq']).lower()
+                    known_E1_stop = str(row["positions"])
+                if row['accession'] == query and row['gene'] == 'CG':
+                    known_CG = str(row['seq']).lower()
+
+        try:
+            E1_stop_genome = E1_positions.split('+')[0]
+            E1_stop_genome = E1_stop_genome.split('(')[1]
+            # print(E8_stop_genome)
+
+            E1_stop_genome = int(str(E1_stop_genome).split('..')[1])
+
+            known_E1_stop = int(known_E1_stop.split('..')[0])
+
+            E1_stop_known = (E1_stop_genome - known_E1_stop)
+
+            splice_sites.append(E1_stop_known)
+
+        except UnboundLocalError:
+            print('Query does not have E1^E4 or E8^E2')
+            stopE1_nt = False
+            return stopE1_nt
+
+        unaligned = os.path.join(blastE1E8_dir, 'unaligned.fa')
+        aligned = os.path.join(blastE1E8_dir, 'aligned.fa')
+
+        if os.path.isfile(unaligned):
+            os.remove(unaligned)
+
+        if os.path.isfile(aligned):
+            os.remove(aligned)
+
+        for key in known_E1:
+            with open(unaligned, 'a') as sequence_file:
+                sequence_file.write(">{}\n".format(ID))
+                sequence_file.write("{}\n".format(E1_seq))
+                sequence_file.write(">{}\n".format(key))
+                sequence_file.write("{}\n".format(known_E1[key]))
+
+        cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
+
+        stdout, stderr = cline()
+
+        align_seq = []
+        for aln in AlignIO.read(aligned, 'fasta'):
+            align_seq.append(aln.seq)
+
+        unknown_seq = str(align_seq[0]).lower()
+        known_seq = str(align_seq[1]).lower()
+
+        j = 0
+        aligned_E1_stop = 0
+
+        for position in known_seq:
+            aligned_E1_stop = aligned_E1_stop + 1
+            # print(aligned_E8_stop)
+            if position.lower() in ['a', 'c', 't', 'g']:
+                j = j + 1
+                if j == E1_stop_known:
+                    break
+
+        E1_stop.append(aligned_E1_stop)
+
+    aligned_E1_stop = E1_stop[-1]
+    search_seq = unknown_seq[aligned_E1_stop:aligned_E1_stop + 50].replace('-', '')
+
+    stopE1_nt = (re.search(search_seq, str(genome).lower()).start()) + 1
+    startE1_nt = E1_whole[0]
+
+    whole_E4 = find_E4(E2_seq, genome)
+    stopE4_nt = whole_E4['E4'][1] - 1
+
+    E1_E4_seq = str(genome[startE1_nt-1:stopE1_nt]+ genome[
+    start_E4_nt:stopE4_nt])
+    E1_E4_trans = Seq(E1_E4_seq).translate()[:-1]
+    E1_E4['E1^E4'] = [startE1_nt,stopE1_nt,start_E4_nt + 1,stopE4_nt,E1_E4_seq,
+        E1_E4_trans]
+    return E1_E4
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+#
+#Finds E8^E2
+#
+def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResult, data_dir):
+    E8_E2 = {}
+    E1_seq = str(E1_whole[2])
+    E1_trans = str(E1_whole[3])
+    genome = str(genome).lower()
+    startE8List = []
+    startMotif = 'MKL'
+
+    if startE2_nt == False:
+
+        E8_E2['E8^E2'] = False
+        return E8_E2
+
+    if blastResult:
+        blast_out = os.path.join(blastE1E8_dir, 'blast_result.tab')
+    else:
+        E8_E2['E8^E2'] = [0, 0, 0, 0, 'No Blast Output', '']
+        return E8_E2
 
     blast_options = []
     with open(blast_out) as blast_file:
@@ -461,8 +561,8 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt, out_dir, data_dir):
             stopE8_nt = False
             return stopE8_nt
 
-        unaligned = os.path.join(E8_dir, 'unaligned.fa')
-        aligned = os.path.join(E8_dir, 'aligned.fa')
+        unaligned = os.path.join(blastE1E8_dir, 'unaligned.fa')
+        aligned = os.path.join(blastE1E8_dir, 'aligned.fa')
 
         if os.path.isfile(unaligned):
             os.remove(unaligned)
@@ -532,9 +632,15 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt, out_dir, data_dir):
             check_seq = Seq(genome[testStart - 1:stopE8_nt]).translate()
             if "*" in check_seq:
                 del startE8List[i]
+            elif check_seq.startswith(startMotif):
+                startE8_nt = startE8List[i] + E1_whole[0]
         except IndexError:
             break
-    startE8_nt = startE8List[0] + E1_whole[0]
+
+    if check_seq.startswith(startMotif):
+        pass
+    else:
+        startE8_nt = startE8List[0] + E1_whole[0]
 
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
 
@@ -554,7 +660,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt, out_dir, data_dir):
 #
 # ----------------------------------------------------------------------------------------
 #
-#Finds splice acceptor posistion for E1^E4 and E8^E2, NOT FINALIZED
+#Finds splice acceptor posistion for E1^E4 and E8^E2
 #
 def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
 
@@ -702,19 +808,19 @@ def to_gff3(dict, genomelen, out_dir):
         out_file.write("##sequence-region {} 1 {}\n".format(dict['name'], genomelen))
 
     for protein in dict:
-        if protein == 'name':
+        if protein == 'name' or protein == 'accession':
             pass
         elif "^" in protein:
             with open(gff3_out, 'a') as out_file:
                 out_file.write(
             "{}\tPuMA\tCDS\t{}\t{}\t{}\t{}\t.\t+\t.\tID={};Note=[{}-{} + {}-{}]\n".format(
                  dict['name'], dict[protein][0], dict[protein][1],
-                dict[protein][2],dict[protein][3],protein, dict[protein][ 0],
+                dict[protein][2],dict[protein][3],protein, dict[protein][0],
                 dict[protein][1],dict[protein][2],dict[protein][3]))
         else:
             with open(gff3_out, 'a') as out_file:
                 out_file.write(
-            "{}\tPuMA\tCDS\t{}\t{}\t.\t+\t.\tID={};Note=[{}-{}]\n".format(
+            "{}\tPuMA\tsplice_site\t{}\t{}\t.\t+\t.\tID={};Note=[{}-{}]\n".format(
                  dict['name'], dict[protein][0], dict[protein][1],
                 protein, dict[protein][ 0], dict[protein][1]))
 
@@ -900,7 +1006,9 @@ def main():
     evalue = args.evalue
     gff3 = args.gff3
     csv = args.csv
-
+    blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
+    if not os.path.isdir(blastE1E8_dir):
+        os.makedirs(blastE1E8_dir)
 
 
     valid_sites = set(
@@ -1007,11 +1115,13 @@ def main():
 
     start_splice_site = find_splice_acceptor(virus['E2'], ID, Origseq,
                                              data_dir, out_dir)
+    blastResult = find_blastResults_E1E8(virus['E1'], ID, out_dir, data_dir)
 
-    E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, Origseq, start_splice_site)
+    E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, Origseq, start_splice_site,
+                      blastE1E8_dir,blastResult, data_dir)
 
     E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, Origseq, start_splice_site,
-                      out_dir, data_dir)
+                      blastE1E8_dir,blastResult,data_dir)
 
     if E8_E2['E8^E2'] == False:
         pass
@@ -1042,7 +1152,7 @@ def main():
             for i in range(0, len(virus['E2BS'])):
                 print('\n{} start and stop position:\n{},{}\n'.format(
                     name, virus[name][i], virus[name][i] + 11))
-                print('{} sequnce:\n{}\n'.format(
+                print('{} sequence:\n{}\n'.format(
                     name,
                     str(virus['genome'][virus['E2BS'][i] - 1:virus['E2BS'][i] +
                                         11]).lower()))
@@ -1055,7 +1165,7 @@ def main():
             else:
                 print('\n{} start and stop position:\n{},{}\n'.format(
                     name, virus[name][0], virus[name][1]))
-                print('{} sequnce:\n{}\n'.format(name, virus[name][2]))
+                print('{} sequence:\n{}\n'.format(name, virus[name][2]))
         else:
             try:
                 if type(virus[name][3]) == int:
@@ -1070,7 +1180,7 @@ def main():
                 else:
                     print('\n{} start and stop position:\n{},{}\n'.format(
                         name, virus[name][0], virus[name][1]))
-                    print('{} sequnce:\n{}\n'.format(name, virus[name][2]))
+                    print('{} sequence:\n{}\n'.format(name, virus[name][2]))
                     if name != 'URR':
                         print('{} translated seqeunce:\n{}\n'.format(
                             name, virus[name][3][:-1]))
@@ -1078,7 +1188,7 @@ def main():
                 print('Line 275:{}'.format(virus[name]))
                 print('\n{} start and stop position:\n{},{}\n'.format(
                     name, virus[name][0], virus[name][1]))
-                print('{} sequnce:\n{}\n'.format(name, virus[name][2]))
+                print('{} sequence:\n{}\n'.format(name, virus[name][2]))
                 if name != 'URR':
                     print('{} translated seqeunce:\n{}\n'.format(
                         name, virus[name][3][:-1]))
