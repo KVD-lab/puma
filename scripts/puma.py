@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 #University of Arizona, KVD Lab & Hurwitz Lab
-# PuMA 0.3-beta 1/29/2019
+# PuMA 0.3-beta 2/4/2019
 
 from distutils.spawn import find_executable
 from Bio import SeqIO, GenBank, AlignIO
@@ -811,18 +811,43 @@ def to_gff3(dict, genomelen, out_dir):
         if protein == 'name' or protein == 'accession':
             pass
         elif "^" in protein:
+            frameNumber = dict[protein][0] % 3
+            if frameNumber == 1:
+                frame = 1
+            elif frameNumber == 2:
+                frame = 2
+            elif frameNumber == 0:
+                frame = 3
             with open(gff3_out, 'a') as out_file:
-                out_file.write(
-            "{}\tPuMA\tCDS\t{}\t{}\t{}\t{}\t.\t+\t.\tID={};Note=[{}-{} + {}-{}]\n".format(
-                 dict['name'], dict[protein][0], dict[protein][1],
-                dict[protein][2],dict[protein][3],protein, dict[protein][0],
-                dict[protein][1],dict[protein][2],dict[protein][3]))
+                out_file.write("{}\tPuMA\tCDS\t{}\t{}\t{}\t{}\t.\t+\t{}\tID={};"
+                               "Note=[{}-{} + {}-{""}]\n".format(dict['name'],
+                                                                 dict[protein][0],
+                                                                 dict[protein][1],
+                                                                 dict[protein][2],
+                                                                 dict[protein][3],
+                                                                 frame,
+                                                                 protein,
+                                                                 dict[protein][0],
+                                                                 dict[protein][1],
+                                                                 dict[protein][2],
+                                                                 dict[protein][3]))
         else:
+            frameNumber = dict[protein][0] % 3
+            if frameNumber == 1:
+                frame = 1
+            elif frameNumber == 2:
+                frame = 2
+            elif frameNumber == 0:
+                frame = 3
             with open(gff3_out, 'a') as out_file:
-                out_file.write(
-            "{}\tPuMA\tsplice_site\t{}\t{}\t.\t+\t.\tID={};Note=[{}-{}]\n".format(
-                 dict['name'], dict[protein][0], dict[protein][1],
-                protein, dict[protein][ 0], dict[protein][1]))
+                out_file.write("{}\tPuMA\tsplice_site\t{}\t{}\t.\t+\t{}\tID={};"
+                               "Note=[{}-{}]\n".format(dict['name'],
+                                                       dict[protein][0],
+                                                       dict[protein][1],
+                                                       frame,
+                                                       protein,
+                                                       dict[protein][ 0],
+                                                       dict[protein][1]))
 
     return
 # ----------------------------------------------------------------------------------------
