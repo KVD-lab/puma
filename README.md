@@ -10,7 +10,7 @@ Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer
 
 University of Arizona, KVD Lab & Hurwitz Lab
 
-Release 0.3-beta (1/29/19) has an updated method of finding E8^E2 and E1^E4
+Release 0.3-beta (2/4/19) has an updated method of finding E8^E2 and E1^E4
 
 # Formatting Input FASTA File
     
