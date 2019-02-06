@@ -4,4 +4,4 @@ __pycache__
 *.swp
 *.img
 blast_database/blast_database.txt.*
-
+.DS_Store
