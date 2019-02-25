@@ -31,7 +31,7 @@ Please install the following:
 * NCBI BLAST+ 2.7.x
 * MEME, FIMO (https://meme-suite.org/)
 * MUSCLE (https://www.drive5.com/muscle)
-
+* DnaFeaturesViewer (https://github.com/Edinburgh-Genome-Foundry/DnaFeaturesViewer)
 
 
 
