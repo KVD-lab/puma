@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 #University of Arizona, KVD Lab & Hurwitz Lab
-# PuMA 0.3-beta 2/4/2019
+# PuMA 0.3-beta 2/24/2019
 
 from distutils.spawn import find_executable
 from Bio import SeqIO, GenBank, AlignIO
@@ -17,6 +17,8 @@ import warnings
 from Bio import BiopythonWarning
 import itertools
 import shutil
+from dna_features_viewer import GraphicFeature, GraphicRecord
+
 
 # ----------------------------------------------------------------------------------------
 #
@@ -794,9 +796,6 @@ def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
 #Outputs gff3 format
 #
 def to_gff3(dict, genomelen, out_dir):
-    del dict['genome']
-    del dict['E1BS']
-    del dict['E2BS']
     del dict['URR']
 
     name = dict['accession']
@@ -819,7 +818,7 @@ def to_gff3(dict, genomelen, out_dir):
             elif frameNumber == 0:
                 frame = 3
             with open(gff3_out, 'a') as out_file:
-                out_file.write("{}\tPuMA\tCDS\t{}\t{}\t{}\t{}\t.\t+\t{}\tID={};"
+                out_file.write("{}\tPuMA\tsplice_site\t{}\t{}\t{}\t{}\t.\t+\t{}\tID={};"
                                "Note=[{}-{} + {}-{""}]\n".format(dict['name'],
                                                                  dict[protein][0],
                                                                  dict[protein][1],
@@ -840,16 +839,98 @@ def to_gff3(dict, genomelen, out_dir):
             elif frameNumber == 0:
                 frame = 3
             with open(gff3_out, 'a') as out_file:
-                out_file.write("{}\tPuMA\tsplice_site\t{}\t{}\t.\t+\t{}\tID={};"
+                out_file.write("{}\tPuMA\tCDS\t{}\t{}\t.\t+\t{}\tID={};"
                                "Note=[{}-{}]\n".format(dict['name'],
                                                        dict[protein][0],
                                                        dict[protein][1],
                                                        frame,
                                                        protein,
-                                                       dict[protein][ 0],
+                                                       dict[protein][0],
                                                        dict[protein][1]))
 
     return
+# ----------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------
+#
+# Genome visualization to pdf
+#
+
+def to_pdf(annotations, out_dir):
+
+    sequence_length = len(annotations['genome'])
+
+    del annotations['genome']
+    del annotations['E1BS']
+    del annotations['E2BS']
+
+    features = []
+
+    pdf_out = os.path.join(out_dir, '{}.pdf'.format(annotations['accession']))
+
+    for value in annotations:
+        if value == 'name' or value == 'accession':
+            pass
+        elif 'E8^' in value:
+            features.append(GraphicFeature(start=annotations[value][0],
+                                           end=annotations[value][1],
+                                           strand=+1,
+                                           color="#800080",
+                                           label='E8'))
+            features.append(GraphicFeature(start=annotations[value][2],
+                                           end=annotations[value][3],
+                                           strand=+1,
+                                           color="#800080",
+                                           label='E2'))
+        elif 'E1^' in value:
+            features.append(GraphicFeature(start=annotations[value][0],
+                                           end=annotations[value][1],
+                                           strand=+1,
+                                           color="#40e0d0",
+                                           label='E1'))
+            features.append(GraphicFeature(start=annotations[value][2],
+                                           end=annotations[value][3],
+                                           strand=+1,
+                                           color="#40e0d0",
+                                           label='E4'))
+        elif 'URR' in value:
+            try:
+                features.append(GraphicFeature(start=annotations[value][0],
+                                               end=annotations[value][1],
+                                               strand=+1,
+                                               color="#ffff00",
+                                               label='URR'))
+                features.append(GraphicFeature(start=annotations[value][2],
+                                               end=annotations[value][3],
+                                               strand=+1,
+                                               color="#ffff00",
+                                               label='URR'))
+
+            except IndexError:
+                features.append(GraphicFeature(start=annotations[value][0],
+                                               end=annotations[value][1],
+                                               strand=+1,
+                                               color="#ffff00",
+                                               label='URR'))
+        elif 'L' in value:
+            features.append(GraphicFeature(start=annotations[value][0],
+                                           end=annotations[value][1],
+                                           strand=+1,
+                                           color="#0000ff",
+                                           label=value))
+        elif 'E' in value:
+            features.append(GraphicFeature(start=annotations[value][0],
+                                           end=annotations[value][1],
+                                           strand=+1,
+                                           color="#ffa500",
+                                           label=value))
+
+    record = GraphicRecord(sequence_length=sequence_length, features=features)
+    ax,_ = record.plot(figure_width=10)
+    ax.figure.savefig(pdf_out)
+    return
+
+
 # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
@@ -1218,6 +1299,7 @@ def main():
                     print('{} translated seqeunce:\n{}\n'.format(
                         name, virus[name][3][:-1]))
 
+    to_pdf(virus, out_dir)
 
     if gff3 == 'y':
         to_gff3(virus,genomelen,out_dir)
