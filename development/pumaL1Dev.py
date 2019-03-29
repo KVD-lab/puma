@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-# Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
-#University of Arizona, KVD Lab & Hurwitz Lab
-# PuMA 0.4 New L1 additions 3/1/2019
+"""
+Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
+University of Arizona, KVD Lab & Hurwitz Lab
+PuMA 0.4 New L1 additions 3/1/2019
+"""
 
 from distutils.spawn import find_executable
 from Bio import SeqIO, GenBank, AlignIO
@@ -21,10 +23,10 @@ from dna_features_viewer import GraphicFeature, GraphicRecord
 
 
 # ----------------------------------------------------------------------------------------
-#
-#This functions finds all the open reading frames and translates them
-#
 def trans_orf(seq, trans_table, min_protein_length):
+    """
+    This functions finds all the open reading frames and translates them
+    """
     ORFs = {}
     has_m = re.compile('M')
     for frame in range(3):
@@ -45,13 +47,15 @@ def trans_orf(seq, trans_table, min_protein_length):
 
     return ORFs
 
-# ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
-#
-# Finds L1 protein
-#
-def findL1(genome,min_prot_len,evalue,data_dir, out_dir):
+
+
+# ----------------------------------------------------------------------------------------
+def findL1(genome, min_prot_len, evalue, data_dir, out_dir):
+    """
+    Finds L1 protein or returns None
+    """
     protein_start = {}
     protein_seq = {}
     found_proteins = {}
@@ -75,11 +79,12 @@ def findL1(genome,min_prot_len,evalue,data_dir, out_dir):
     if os.path.isfile(blast_out):
         os.remove(blast_out)
 
-    cmd = blastp(query=orfs_fa,
-                 subject=blast_sub,
-                 evalue=evalue,
-                 outfmt=6,
-                 out=blast_out)
+    cmd = blastp(
+        query=orfs_fa,
+        subject=blast_sub,
+        evalue=evalue,
+        outfmt=6,
+        out=blast_out)
 
     stdout, stderr = cmd()
     if stdout:
@@ -89,7 +94,7 @@ def findL1(genome,min_prot_len,evalue,data_dir, out_dir):
 
     if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
         print('No BLAST output "{}" (must have failed)'.format(blast_out))
-        found_proteins['L1'] = ['RC?']#Possible RC?
+        found_proteins['L1'] = ['RC?']  #Possible RC?
         return found_proteins
 
     with open(blast_out) as tab_file:
@@ -112,10 +117,13 @@ def findL1(genome,min_prot_len,evalue,data_dir, out_dir):
             if seq == start:
                 if seq == 'L1':
                     M = re.search('M', protein_seq[seq])
-                    real_start = protein_start[start] + M.start() + M.start() + M.start()
-                    end = protein_start[start] + ((len(protein_seq[seq]) + 1) * 3)
+                    real_start = protein_start[start] + M.start() + M.start(
+                    ) + M.start()
+                    end = protein_start[start] + (
+                        (len(protein_seq[seq]) + 1) * 3)
                     found_proteins['L1'] = []
-                    L1_pre = genome[(protein_start[start] + 3 * M.start()):int(end)]
+                    L1_pre = genome[(
+                        protein_start[start] + 3 * M.start()):int(end)]
                     splice = '(C|T)(C|T)(A|C|G|T)(C|T)AG(A)TG'
                     spliced = re.search(splice, str(L1_pre))
                     if spliced:
@@ -123,56 +131,65 @@ def findL1(genome,min_prot_len,evalue,data_dir, out_dir):
                         if start_L1 % 3 == 0:
                             if start_L1 > 600:
                                 L1_post = L1_pre
-                                found_proteins['L1'] = [int(start_L1),
-                                    int(end), str(L1_post).lower(), Seq(str(
-                                        L1_post)).translate()]
+                                found_proteins['L1'] = [
+                                    int(start_L1),
+                                    int(end),
+                                    str(L1_post).lower(),
+                                    Seq(str(L1_post)).translate()
+                                ]
                             else:
                                 L1_post = L1_pre[start_L1:]
-                                found_proteins['L1'] = [int(real_start) + 1 +
-                                                        int(start_L1), int(end),
+                                found_proteins['L1'] = [
+                                    int(real_start) + 1 + int(start_L1),
+                                    int(end),
                                     str(L1_post).lower(),
-                                    Seq(str(L1_post)).translate()]
+                                    Seq(str(L1_post)).translate()
+                                ]
                         else:
                             L1_post = L1_pre
-                            found_proteins['L1'] = [int(real_start) + 1, int(end),
+                            found_proteins['L1'] = [
+                                int(real_start) + 1,
+                                int(end),
                                 str(L1_post).lower(),
-                                Seq(str(L1_post)).translate()]
+                                Seq(str(L1_post)).translate()
+                            ]
                     else:
                         L1_post = L1_pre
-                        found_proteins['L1'] = [int(real_start) + 1,
-                            int(end), str(L1_post).lower(), Seq(str(L1_post)).translate()]
+                        found_proteins['L1'] = [
+                            int(real_start) + 1,
+                            int(end),
+                            str(L1_post).lower(),
+                            Seq(str(L1_post)).translate()
+                        ]
                 else:
                     pass
 
     return found_proteins
 
 
-
 # ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
-#
-# Makes L1 stop postion the last nucleotide of the genome and L1 stop +1 the start of
-# the genome
-#
-
-def makeL1End(l1Result,originalGenome, originalGenomeLength):
+def makeL1End(l1Result, originalGenome, originalGenomeLength):
+    """
+    Makes L1 stop postion the last nucleotide of the genome and L1 
+    stop +1 the start of the genome
+    """
     start = l1Result['L1'][0]
     stop = l1Result['L1'][1]
 
-    if start < originalGenomeLength and stop > originalGenomeLength: #When gene wraps
+    #When gene wraps
+    if start < originalGenomeLength and stop > originalGenomeLength:
         # around
         sequence = originalGenome[originalGenomeLength + 1:stop]
-        newGenome = originalGenome + sequence#Still has extra at the beginning
+        newGenome = originalGenome + sequence  #Still has extra at the beginning
         newStart = len(sequence)
-        newGenome = newGenome[newStart+1:]
-    elif start > originalGenomeLength and stop > originalGenomeLength: #No wrap around
+        newGenome = newGenome[newStart + 1:]
+    elif start > originalGenomeLength and stop > originalGenomeLength:  #No wrap around
         stop = stop - originalGenomeLength
         sequence = originalGenome[stop + 1:]
-        newGenome =  sequence + originalGenome  # Still has extra at the beginning
+        newGenome = sequence + originalGenome  # Still has extra at the beginning
         newStop = stop + len(sequence)
         newGenome = newGenome[:newStop + 1]
-    elif start < originalGenomeLength and stop < originalGenomeLength: #No wrap around
+    elif start < originalGenomeLength and stop < originalGenomeLength:  #No wrap around
         sequence = originalGenome[stop:]
         newStop = stop + len(sequence)
         newGenome = sequence + originalGenome  # Still has extra at the beginning
@@ -181,15 +198,17 @@ def makeL1End(l1Result,originalGenome, originalGenomeLength):
         print("GOT HERE")
         newGenome = originalGenome
 
-
     return newGenome
+
+
 # ----------------------------------------------------------------------------------------
 #
 # This function uses blast to find the different proteins in
 # the translated genome
 #
 
-def blast_proteins(genome,min_prot_len,evalue,data_dir, out_dir):
+
+def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
     protein_start = {}
     protein_seq = {}
     found_proteins = {}
@@ -207,19 +226,18 @@ def blast_proteins(genome,min_prot_len,evalue,data_dir, out_dir):
         orfs_fh.write('\n'.join(['>' + str(orfs[orf]), orf, '']))
     orfs_fh.close()
 
-
     blast_sub = os.path.join(data_dir, 'main_blast.fa')
     blast_out = os.path.join(out_dir, 'blast_results.tab')
 
     if os.path.isfile(blast_out):
         os.remove(blast_out)
 
-
-    cmd = blastp(query=orfs_fa,
-                 subject=blast_sub,
-                 evalue=evalue,
-                 outfmt=6,
-                 out=blast_out)
+    cmd = blastp(
+        query=orfs_fa,
+        subject=blast_sub,
+        evalue=evalue,
+        outfmt=6,
+        out=blast_out)
 
     stdout, stderr = cmd()
     if stdout:
@@ -230,7 +248,6 @@ def blast_proteins(genome,min_prot_len,evalue,data_dir, out_dir):
     if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
         print('No BLAST output "{}" (must have failed)'.format(blast_out))
         sys.exit(1)
-
 
     with open(blast_out) as tab_file:
         for line in csv.reader(tab_file, delimiter="\t"):
@@ -252,10 +269,13 @@ def blast_proteins(genome,min_prot_len,evalue,data_dir, out_dir):
             if seq == start:
                 if seq == 'L1':
                     M = re.search('M', protein_seq[seq])
-                    real_start = protein_start[start] + M.start() + M.start() + M.start()
-                    end = protein_start[start] + ((len(protein_seq[seq])+1) * 3)
+                    real_start = protein_start[start] + M.start() + M.start(
+                    ) + M.start()
+                    end = protein_start[start] + (
+                        (len(protein_seq[seq]) + 1) * 3)
                     found_proteins['L1'] = []
-                    L1_pre = genome[(protein_start[start] + 3 * M.start()):int(end)]
+                    L1_pre = genome[(
+                        protein_start[start] + 3 * M.start()):int(end)]
                     splice = '(C|T)(C|T)(A|C|G|T)(C|T)AG(A)TG'
                     spliced = re.search(splice, str(L1_pre))
                     if spliced:
@@ -263,39 +283,55 @@ def blast_proteins(genome,min_prot_len,evalue,data_dir, out_dir):
                         if start_L1 % 3 == 0:
                             if start_L1 > 600:
                                 L1_post = L1_pre
-                                found_proteins['L1'] = [int(start_L1),
-                                    int(end),str(L1_post).lower(),Seq(str(
-                                        L1_post)).translate()]
+                                found_proteins['L1'] = [
+                                    int(start_L1),
+                                    int(end),
+                                    str(L1_post).lower(),
+                                    Seq(str(L1_post)).translate()
+                                ]
                             else:
                                 L1_post = L1_pre[start_L1:]
-                                found_proteins['L1'] = [int(real_start) + 1 +
-                                       int(start_L1),int(end), str(L1_post).lower(),
-                                    Seq(str(L1_post)).translate()]
+                                found_proteins['L1'] = [
+                                    int(real_start) + 1 + int(start_L1),
+                                    int(end),
+                                    str(L1_post).lower(),
+                                    Seq(str(L1_post)).translate()
+                                ]
                         else:
                             L1_post = L1_pre
-                            found_proteins['L1'] = [int(real_start) + 1, int(end),
+                            found_proteins['L1'] = [
+                                int(real_start) + 1,
+                                int(end),
                                 str(L1_post).lower(),
-                            Seq(str(L1_post)).translate()]
+                                Seq(str(L1_post)).translate()
+                            ]
                     else:
                         L1_post = L1_pre
-                        found_proteins['L1'] = [int(real_start) + 1,
-                            int(end), str(L1_post).lower(), Seq(str(L1_post)).translate()]
+                        found_proteins['L1'] = [
+                            int(real_start) + 1,
+                            int(end),
+                            str(L1_post).lower(),
+                            Seq(str(L1_post)).translate()
+                        ]
                 else:
                     try:
                         M = re.search('M', protein_seq[seq])
-                        real_start = protein_start[start] + M.start() + M.start() + M.start()
-                        end = protein_start[start] + ((len(protein_seq[seq])+1) * 3)
-                        sequence = str(genome[int(real_start):int(end)]).lower()
+                        real_start = protein_start[start] + M.start(
+                        ) + M.start() + M.start()
+                        end = protein_start[start] + (
+                            (len(protein_seq[seq]) + 1) * 3)
+                        sequence = str(
+                            genome[int(real_start):int(end)]).lower()
                         translated = Seq(sequence).translate()
-                        found_proteins[seq] = [int(real_start) + 1, int(end), sequence,
-                        translated]
+                        found_proteins[seq] = [
+                            int(real_start) + 1,
+                            int(end), sequence, translated
+                        ]
                     except AttributeError:
                         pass
 
-
-
-
     return found_proteins
+
 
 # ----------------------------------------------------------------------------------------
 
@@ -304,7 +340,8 @@ def blast_proteins(genome,min_prot_len,evalue,data_dir, out_dir):
 #Finds the E1 binding site in the genome using the URR
 #
 
-def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
+
+def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
     genomeLength = len(genome)
     E1BS = {}  # Storing E1BS
     startListURR = []
@@ -328,8 +365,7 @@ def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
     motif = os.path.join(data_dir, 'E1BS_motif.txt')
 
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
-    cline = (fimo_cmd.format(fimo_exe, fimo_dir, background ,
-                             motif, tmp))
+    cline = (fimo_cmd.format(fimo_exe, fimo_dir, background, motif, tmp))
 
     os.system(str(cline))
 
@@ -352,26 +388,34 @@ def find_E1BS(genome, URR, URRstart, ID,data_dir, out_dir):
     if genomestart > genomeLength:
         genomestart = genomestart - genomeLength
 
-
     genomestop = genomestart + 19
 
     if genomestop > genomeLength:
         genomestop = genomestop - genomeLength
-        sequence = str(genome[int(genomestart)-2:] + genome[:genomestop]).lower()
-        E1BS['E1BS'] = [int(genomestart), int(genomeLength), 1, int(genomestop),sequence]
+        sequence = str(genome[int(genomestart) - 2:] +
+                       genome[:genomestop]).lower()
+        E1BS['E1BS'] = [
+            int(genomestart),
+            int(genomeLength), 1,
+            int(genomestop), sequence
+        ]
 
     else:
         if genomestart == 1:
-            sequence = str(genome[-1]).lower() + str(genome[int(genomestart - 1):int(
-                genomestop)]).lower()
+            sequence = str(genome[-1]).lower() + str(
+                genome[int(genomestart - 1):int(genomestop)]).lower()
             E1BS['E1BS'] = [int(genomestart), int(genomestop), sequence]
 
         else:
-            sequence = str(genome[int(genomestart-2):int(genomestop)]).lower()
-            E1BS['E1BS'] = [int(genomestart), int(genomestop),sequence]
+            sequence = str(
+                genome[int(genomestart - 2):int(genomestop)]).lower()
+            E1BS['E1BS'] = [int(genomestart), int(genomestop), sequence]
 
     return E1BS
+
+
 # ----------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------
 #
@@ -388,7 +432,6 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
         tempfile.write('>URR for {}\n'.format(ID))
         tempfile.write(str(URR))
 
-
     fimo_exe = find_executable('fimo')
     if not fimo_exe:
         print('Please install "fimo" into your $PATH')
@@ -398,10 +441,10 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
     if not os.path.isdir(fimo_dir):
         os.makedirs(fimo_dir)
 
-    motif = os.path.join(data_dir,'E2BS_motif.txt' )
+    motif = os.path.join(data_dir, 'E2BS_motif.txt')
 
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-4 {} {}'
-    cline = (fimo_cmd.format(fimo_exe, fimo_dir,motif , tmp))
+    cline = (fimo_cmd.format(fimo_exe, fimo_dir, motif, tmp))
 
     os.system(str(cline))
 
@@ -428,9 +471,9 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
                 genomestart = (genomestart + URRstart)
                 if genomestart > genomeLength:
                     genomestart = genomestart - genomeLength
-                    startListGenome.append(genomestart-1)
+                    startListGenome.append(genomestart - 1)
                 else:
-                    startListGenome.append(genomestart-1)
+                    startListGenome.append(genomestart - 1)
 
             E2BS['E2BS'] = startListGenome
 
@@ -442,8 +485,8 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
             return E2BS
 
 
-
 # ----------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------
 #
@@ -453,18 +496,18 @@ def find_E4(E2, genome):
     E4 = {}
 
     trans_E2 = Seq(E2[1:len(E2)]).translate()
-    E4protein_long = str(max(trans_E2.split("*"),key=len))
+    E4protein_long = str(max(trans_E2.split("*"), key=len))
     if 'M' in E4protein_long:
         M = re.search('M', E4protein_long)
         if M.start() > 41:
             E4protein = E4protein_long
         else:
-            E4protein_tmp = E4protein_long.split('M',1)[1]
+            E4protein_tmp = E4protein_long.split('M', 1)[1]
             E4protein = 'M' + str(E4protein_tmp)
     else:
         E4protein = E4protein_long
 
-    E4_start = re.search(str(E4protein),str(trans_E2)).start()
+    E4_start = re.search(str(E4protein), str(trans_E2)).start()
     E4_end = re.search(str(E4protein), str(trans_E2)).end()
     E4_nt = str(E2[(E4_start * 3) + 1:((E4_end + 1) * 3) + 1])
     E4_nt_start = re.search(E4_nt, str(genome)).start()
@@ -473,15 +516,17 @@ def find_E4(E2, genome):
     translated = Seq(sequence).translate()
     E4['E4'] = [int(E4_nt_start) + 1, int(E4_nt_end) + 1]
     return E4
+
+
 # ----------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------
 #
 #Finds the blast results for E1 and E8
 #
-def find_blastResults_E1E8(E1_whole,ID, out_dir,data_dir):
+def find_blastResults_E1E8(E1_whole, ID, out_dir, data_dir):
     E1_trans = str(E1_whole[3])
-
 
     blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
     if not os.path.isdir(blastE1E8_dir):
@@ -499,11 +544,12 @@ def find_blastResults_E1E8(E1_whole,ID, out_dir,data_dir):
         query.write('>{}\n'.format(ID))
         query.write(E1_trans)
 
-    cmd = blastp(query=query_file,
-                 subject=blast_subject,
-                 evalue=1e-10,
-                 outfmt=6,
-                 out=blast_out)
+    cmd = blastp(
+        query=query_file,
+        subject=blast_subject,
+        evalue=1e-10,
+        outfmt=6,
+        out=blast_out)
 
     stdout, stderr = cmd()
 
@@ -515,11 +561,14 @@ def find_blastResults_E1E8(E1_whole,ID, out_dir,data_dir):
     else:
         blastResult = True
     return blastResult
+
+
 # ----------------------------------------------------------------------------------------
 #
 #Finds E1^E4
 #
-def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt,blastE1E8_dir,blastResult, data_dir):
+def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
+              blastResult, data_dir):
     E1_E4 = {}
     genome = str(genome).lower()
     E2_seq = str(E2_whole[2])
@@ -532,7 +581,7 @@ def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt,blastE1E8_dir,blastResult,
     if blastResult:
         blast_out = os.path.join(blastE1E8_dir, 'blast_result.tab')
     else:
-        E1_E4['E1^E4'] = [0, 0, 0, 0, 'No Blast Output','']
+        E1_E4['E1^E4'] = [0, 0, 0, 0, 'No Blast Output', '']
         return E1_E4
 
     blast_options = []
@@ -549,7 +598,8 @@ def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt,blastE1E8_dir,blastResult,
         csv_database = os.path.join(data_dir, 'all_pave.csv')
 
         with open(csv_database, 'r') as csvfile:
-            read = csv.DictReader(csvfile, ('accession', 'gene', 'positions', 'seq'))
+            read = csv.DictReader(csvfile,
+                                  ('accession', 'gene', 'positions', 'seq'))
             for row in read:
                 if row['accession'] == query and row['gene'] == 'E1^E4':
                     E1_positions = row['positions']
@@ -618,7 +668,8 @@ def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt,blastE1E8_dir,blastResult,
         E1_stop.append(aligned_E1_stop)
 
     aligned_E1_stop = E1_stop[-1]
-    search_seq = unknown_seq[aligned_E1_stop:aligned_E1_stop + 50].replace('-', '')
+    search_seq = unknown_seq[aligned_E1_stop:aligned_E1_stop + 50].replace(
+        '-', '')
 
     stopE1_nt = (re.search(search_seq, str(genome).lower()).start()) + 1
     startE1_nt = E1_whole[0]
@@ -626,19 +677,25 @@ def find_E1E4(E1_whole,E2_whole,ID,genome,start_E4_nt,blastE1E8_dir,blastResult,
     whole_E4 = find_E4(E2_seq, genome)
     stopE4_nt = whole_E4['E4'][1] - 1
 
-    E1_E4_seq = str(genome[startE1_nt-1:stopE1_nt]+ genome[
-    start_E4_nt:stopE4_nt])
+    E1_E4_seq = str(genome[startE1_nt - 1:stopE1_nt] +
+                    genome[start_E4_nt:stopE4_nt])
     E1_E4_trans = Seq(E1_E4_seq).translate()[:-1]
-    E1_E4['E1^E4'] = [startE1_nt,stopE1_nt,start_E4_nt + 1,stopE4_nt,E1_E4_seq,
-        E1_E4_trans]
+    E1_E4['E1^E4'] = [
+        startE1_nt, stopE1_nt, start_E4_nt + 1, stopE4_nt, E1_E4_seq,
+        E1_E4_trans
+    ]
     return E1_E4
+
+
 # ----------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------
 #
 #Finds E8^E2
 #
-def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResult, data_dir):
+def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
+              blastResult, data_dir):
     E8_E2 = {}
     E1_seq = str(E1_whole[2])
     E1_trans = str(E1_whole[3])
@@ -657,7 +714,6 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResu
         E8_E2['E8^E2'] = [0, 0, 0, 0, 'No Blast Output', '']
         return E8_E2
 
-
     blast_options = []
     with open(blast_out) as blast_file:
         blast_result = csv.reader(blast_file, delimiter='\t')
@@ -672,7 +728,8 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResu
         csv_database = os.path.join(data_dir, 'all_pave.csv')
 
         with open(csv_database, 'r') as csvfile:
-            read = csv.DictReader(csvfile, ('accession', 'gene', 'positions', 'seq'))
+            read = csv.DictReader(csvfile,
+                                  ('accession', 'gene', 'positions', 'seq'))
             for row in read:
                 if row['accession'] == query and row['gene'] == 'E8^E2':
                     E8_positions = row['positions']
@@ -686,7 +743,6 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResu
             E8_stop_genome = E8_positions.split('+')[0]
             E8_stop_genome = E8_stop_genome.split('(')[1]
             #print(E8_stop_genome)
-
 
             E8_stop_genome = int(str(E8_stop_genome).split('..')[1])
 
@@ -730,7 +786,6 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResu
         j = 0
         aligned_E8_stop = 0
 
-
         for position in known_seq:
             aligned_E8_stop = aligned_E8_stop + 1
             #print(aligned_E8_stop)
@@ -743,7 +798,8 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResu
 
     aligned_E8_stop = E8_stop[-1]
 
-    search_seq = unknown_seq[aligned_E8_stop:aligned_E8_stop + 50].replace('-', '')
+    search_seq = unknown_seq[aligned_E8_stop:aligned_E8_stop + 50].replace(
+        '-', '')
 
     stopE8_nt = (re.search(search_seq, str(genome).lower()).start()) + 1
 
@@ -782,7 +838,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResu
             startE8_nt = startE8List[0] + E1_whole[0]
 
     except UnboundLocalError:
-        E8_E2['E8^E2'] = [0,0,0,0,"Something Wrong","Something Wrongg"]
+        E8_E2['E8^E2'] = [0, 0, 0, 0, "Something Wrong", "Something Wrongg"]
         return E8_E2
 
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
@@ -790,22 +846,25 @@ def find_E8E2(E1_whole, E2_whole, ID, genome,startE2_nt,blastE1E8_dir, blastResu
     if startE2_nt != False:
         stopE2_nt = E2_whole[1]
 
-    E8_E2_seq = Seq(genome[startE8_nt - 1:stopE8_nt] + genome[
-    startE2_nt:stopE2_nt])
+    E8_E2_seq = Seq(genome[startE8_nt - 1:stopE8_nt] +
+                    genome[startE2_nt:stopE2_nt])
     E8_E2_trans = E8_E2_seq.translate()
 
-
-    E8_E2['E8^E2'] = [startE8_nt, stopE8_nt, startE2_nt + 1, stopE2_nt, E8_E2_seq,
-            E8_E2_trans]
+    E8_E2['E8^E2'] = [
+        startE8_nt, stopE8_nt, startE2_nt + 1, stopE2_nt, E8_E2_seq,
+        E8_E2_trans
+    ]
 
     return E8_E2
+
+
 # ----------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------
 #
 #Finds splice acceptor posistion for E1^E4 and E8^E2
 #
-def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
+def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
 
     E2_trans = str(E2_whole[3])
     E2_seq = E2_whole[2]
@@ -826,11 +885,12 @@ def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
         query.write('>{}\n'.format(ID))
         query.write(E2_trans)
 
-    cmd = blastp(query=query_file,
-                 subject=blast_subject,
-                 evalue=1e-10,
-                 outfmt=6,
-                 out=blast_out)
+    cmd = blastp(
+        query=query_file,
+        subject=blast_subject,
+        evalue=1e-10,
+        outfmt=6,
+        out=blast_out)
 
     stdout, stderr = cmd()
 
@@ -852,9 +912,9 @@ def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
         known_E2 = {}
         csv_database = os.path.join(data_dir, 'all_pave.csv')
 
-
         with open(csv_database, 'r') as csvfile:
-            read = csv.DictReader(csvfile,('accession', 'gene', 'positions', 'seq'))
+            read = csv.DictReader(csvfile,
+                                  ('accession', 'gene', 'positions', 'seq'))
             for row in read:
                 if row['accession'] == query and row['gene'] == 'E8^E2':
                     splice_acceptor_positions = row['positions']
@@ -900,7 +960,6 @@ def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
 
         stdout, stderr = cline()
 
-
         align_seq = []
         for aln in AlignIO.read(aligned, 'fasta'):
             align_seq.append(aln.seq)
@@ -913,7 +972,7 @@ def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
 
         for position in known_seq:
             aligned_splice_start = aligned_splice_start + 1
-            if position.lower() in ['a','c','t','g']:
+            if position.lower() in ['a', 'c', 't', 'g']:
                 j = j + 1
                 if j == splice_start_known:
                     break
@@ -922,15 +981,16 @@ def find_splice_acceptor( E2_whole, ID,genome, data_dir, out_dir):
 
     aligned_splice_start = aligned_starts[-1]
 
+    search_seq = unknown_seq[aligned_splice_start:aligned_splice_start +
+                             50].replace('-', '')
 
-    search_seq = unknown_seq[aligned_splice_start:aligned_splice_start + 50].replace('-','')
-
-    startE2_nt = re.search(search_seq,str(genome).lower()).start()
-
+    startE2_nt = re.search(search_seq, str(genome).lower()).start()
 
     return startE2_nt
 
+
 # ----------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------
 #
@@ -945,7 +1005,8 @@ def to_gff3(dict, genomelen, out_dir):
 
     with open(gff3_out, 'a') as out_file:
         out_file.write("##gff-version 3\n")
-        out_file.write("##sequence-region {} 1 {}\n".format(dict['name'], genomelen))
+        out_file.write("##sequence-region {} 1 {}\n".format(
+            dict['name'], genomelen))
 
     for protein in dict:
         if protein == 'name' or protein == 'accession':
@@ -959,18 +1020,14 @@ def to_gff3(dict, genomelen, out_dir):
             elif frameNumber == 0:
                 frame = 3
             with open(gff3_out, 'a') as out_file:
-                out_file.write("{}\tPuMA\tsplice_site\t{}\t{}\t{}\t{}\t.\t+\t{}\tID={};"
-                               "Note=[{}-{} + {}-{""}]\n".format(dict['name'],
-                                                                 dict[protein][0],
-                                                                 dict[protein][1],
-                                                                 dict[protein][2],
-                                                                 dict[protein][3],
-                                                                 frame,
-                                                                 protein,
-                                                                 dict[protein][0],
-                                                                 dict[protein][1],
-                                                                 dict[protein][2],
-                                                                 dict[protein][3]))
+                out_file.write(
+                    "{}\tPuMA\tsplice_site\t{}\t{}\t{}\t{}\t.\t+\t{}\tID={};"
+                    "Note=[{}-{} + {}-{"
+                    "}]\n".format(dict['name'], dict[protein][0],
+                                  dict[protein][1], dict[protein][2],
+                                  dict[protein][3], frame, protein,
+                                  dict[protein][0], dict[protein][1],
+                                  dict[protein][2], dict[protein][3]))
         else:
             frameNumber = dict[protein][0] % 3
             if frameNumber == 1:
@@ -980,22 +1037,22 @@ def to_gff3(dict, genomelen, out_dir):
             elif frameNumber == 0:
                 frame = 3
             with open(gff3_out, 'a') as out_file:
-                out_file.write("{}\tPuMA\tCDS\t{}\t{}\t.\t+\t{}\tID={};"
-                               "Note=[{}-{}]\n".format(dict['name'],
-                                                       dict[protein][0],
-                                                       dict[protein][1],
-                                                       frame,
-                                                       protein,
-                                                       dict[protein][0],
-                                                       dict[protein][1]))
+                out_file.write(
+                    "{}\tPuMA\tCDS\t{}\t{}\t.\t+\t{}\tID={};"
+                    "Note=[{}-{}]\n".format(
+                        dict['name'], dict[protein][0], dict[protein][1],
+                        frame, protein, dict[protein][0], dict[protein][1]))
 
     return
+
+
 # ----------------------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------------------
 #
 # Genome visualization to pdf
 #
+
 
 def to_pdf(annotations, out_dir):
 
@@ -1013,148 +1070,182 @@ def to_pdf(annotations, out_dir):
         if value == 'name' or value == 'accession':
             pass
         elif 'E8^' in value:
-            features.append(GraphicFeature(start=annotations[value][0],
-                                           end=annotations[value][1],
-                                           strand=+1,
-                                           color="#800080",
-                                           label='E8'))
-            features.append(GraphicFeature(start=annotations[value][2],
-                                           end=annotations[value][3],
-                                           strand=+1,
-                                           color="#800080",
-                                           label='E2'))
+            features.append(
+                GraphicFeature(
+                    start=annotations[value][0],
+                    end=annotations[value][1],
+                    strand=+1,
+                    color="#800080",
+                    label='E8'))
+            features.append(
+                GraphicFeature(
+                    start=annotations[value][2],
+                    end=annotations[value][3],
+                    strand=+1,
+                    color="#800080",
+                    label='E2'))
         elif 'E1^' in value:
-            features.append(GraphicFeature(start=annotations[value][0],
-                                           end=annotations[value][1],
-                                           strand=+1,
-                                           color="#40e0d0",
-                                           label='E1'))
-            features.append(GraphicFeature(start=annotations[value][2],
-                                           end=annotations[value][3],
-                                           strand=+1,
-                                           color="#40e0d0",
-                                           label='E4'))
+            features.append(
+                GraphicFeature(
+                    start=annotations[value][0],
+                    end=annotations[value][1],
+                    strand=+1,
+                    color="#40e0d0",
+                    label='E1'))
+            features.append(
+                GraphicFeature(
+                    start=annotations[value][2],
+                    end=annotations[value][3],
+                    strand=+1,
+                    color="#40e0d0",
+                    label='E4'))
         elif 'URR' in value:
             try:
-                features.append(GraphicFeature(start=annotations[value][0],
-                                               end=annotations[value][1],
-                                               strand=+1,
-                                               color="#ffff00",
-                                               label='URR'))
-                features.append(GraphicFeature(start=annotations[value][2],
-                                               end=annotations[value][3],
-                                               strand=+1,
-                                               color="#ffff00",
-                                               label='URR'))
+                features.append(
+                    GraphicFeature(
+                        start=annotations[value][0],
+                        end=annotations[value][1],
+                        strand=+1,
+                        color="#ffff00",
+                        label='URR'))
+                features.append(
+                    GraphicFeature(
+                        start=annotations[value][2],
+                        end=annotations[value][3],
+                        strand=+1,
+                        color="#ffff00",
+                        label='URR'))
 
             except IndexError:
-                features.append(GraphicFeature(start=annotations[value][0],
-                                               end=annotations[value][1],
-                                               strand=+1,
-                                               color="#ffff00",
-                                               label='URR'))
+                features.append(
+                    GraphicFeature(
+                        start=annotations[value][0],
+                        end=annotations[value][1],
+                        strand=+1,
+                        color="#ffff00",
+                        label='URR'))
         elif 'L' in value:
-            features.append(GraphicFeature(start=annotations[value][0],
-                                           end=annotations[value][1],
-                                           strand=+1,
-                                           color="#0000ff",
-                                           label=value))
+            features.append(
+                GraphicFeature(
+                    start=annotations[value][0],
+                    end=annotations[value][1],
+                    strand=+1,
+                    color="#0000ff",
+                    label=value))
         elif 'E' in value:
-            features.append(GraphicFeature(start=annotations[value][0],
-                                           end=annotations[value][1],
-                                           strand=+1,
-                                           color="#ffa500",
-                                           label=value))
+            features.append(
+                GraphicFeature(
+                    start=annotations[value][0],
+                    end=annotations[value][1],
+                    strand=+1,
+                    color="#ffa500",
+                    label=value))
 
     record = GraphicRecord(sequence_length=sequence_length, features=features)
-    ax,_ = record.plot(figure_width=10)
+    ax, _ = record.plot(figure_width=10)
     ax.figure.savefig(pdf_out)
     return
 
 
 # ----------------------------------------------------------------------------------------
 
+
 # ----------------------------------------------------------------------------------------
 #
 #Output to csv file
 #
-def export_to_csv(annotations,out_dir):
+def export_to_csv(annotations, out_dir):
 
     csv_out = os.path.join(out_dir, 'puma_results.csv')
 
-    with open(csv_out,'a') as out:
+    with open(csv_out, 'a') as out:
         out_file = csv.writer(out)
 
         for value in annotations:
             if value == 'genome':
-                out_file.writerows([[annotations['accession'],
-                                   'CG',"",str(annotations[value]).lower()]])
+                out_file.writerows([[
+                    annotations['accession'], 'CG', "",
+                    str(annotations[value]).lower()
+                ]])
             elif value == 'URR':
                 try:
-                    out_file.writerows([[annotations['accession'],
-                                       value, 'join(' + str(annotations[value][0])
-                                       + '..' +
-                                      str(annotations[value][1]) + '+' +
-                                      str(annotations[value][2]) + ".." +
-                                      str(annotations[value][3]) +')',
-                                      annotations[value][4]]])
+                    out_file.writerows([[
+                        annotations['accession'], value,
+                        'join(' + str(annotations[value][0]) + '..' + str(
+                            annotations[value][1]) + '+' +
+                        str(annotations[value][2]) + ".." + str(
+                            annotations[value][3]) + ')', annotations[value][4]
+                    ]])
                 except IndexError:
-                    out_file.writerows([[annotations['accession'],
-                                       value, str(annotations[value][0]) + '..' +
-                                       str(annotations[value][1]),
-                                        annotations[value][2]]])
+                    out_file.writerows([[
+                        annotations['accession'], value,
+                        str(annotations[value][0]) + '..' + str(
+                            annotations[value][1]), annotations[value][2]
+                    ]])
             elif value == 'E1BS':
                 try:
-                    out_file.writerows([[annotations['accession'],
-                                       value, 'join(' + str(annotations[value][0]) + '..'
-                                       + str(annotations[value][1]) + '+' +
-                                       str(annotations[value][2]) + ".." +
-                                       str(annotations[value][3]) + ')',
-                                       annotations[value][4]]])
+                    out_file.writerows([[
+                        annotations['accession'], value,
+                        'join(' + str(annotations[value][0]) + '..' + str(
+                            annotations[value][1]) + '+' +
+                        str(annotations[value][2]) + ".." + str(
+                            annotations[value][3]) + ')', annotations[value][4]
+                    ]])
                 except IndexError:
-                    out_file.writerows([[annotations['accession'],
-                                        value, str(annotations[value][0]) + '..' +
-                                        str(annotations[value][1]),
-                                        annotations[value][2]]])
+                    out_file.writerows([[
+                        annotations['accession'], value,
+                        str(annotations[value][0]) + '..' + str(
+                            annotations[value][1]), annotations[value][2]
+                    ]])
             elif value == 'E2BS':
-                for i in range(0,len(annotations[value]),1):
-                                  out_file.writerows([[annotations['accession'], value,
-                                   str(annotations[value][i]) + '..' +
-                                   str(annotations[value][i] +11),str(annotations['genome']
-                                   [annotations[value][i]-1:annotations[value][
-                                    i]+11]).lower()]])
+                for i in range(0, len(annotations[value]), 1):
+                    out_file.writerows([[
+                        annotations['accession'], value,
+                        str(annotations[value][i]) + '..' +
+                        str(annotations[value][i] + 11),
+                        str(annotations['genome'][annotations[value][i] -
+                                                  1:annotations[value][i] +
+                                                  11]).lower()
+                    ]])
             elif value == 'E1^E4':
-                out_file.writerows([[annotations['accession'], value,
-                                    'join(' + str(annotations[value][0]) + '..' +
-                                     str(annotations[value][1]) + '+' +
-                                    str(annotations[value][2]) + ".."+
-                                    str(annotations[value][3]) + ')',
-                                    annotations[value][4],annotations[value][5]]])
+                out_file.writerows([[
+                    annotations['accession'], value,
+                    'join(' + str(annotations[value][0]) + '..' + str(
+                        annotations[value][1]) + '+' + str(
+                            annotations[value][2]) + ".." + str(
+                                annotations[value][3]) + ')',
+                    annotations[value][4], annotations[value][5]
+                ]])
             elif value == 'E8^E2':
-                out_file.writerows([[annotations['accession'], value,
-                                      'join(' + str(annotations[value][0]) + '..' +
-                                      str(annotations[value][1]) + '+' +
-                                      str(annotations[value][2]) + ".."
-                                      + str(annotations[value][3]) + ')'
-                                      ,annotations[value][4],annotations[value][5]]])
+                out_file.writerows([[
+                    annotations['accession'], value,
+                    'join(' + str(annotations[value][0]) + '..' + str(
+                        annotations[value][1]) + '+' + str(
+                            annotations[value][2]) + ".." + str(
+                                annotations[value][3]) + ')',
+                    annotations[value][4], annotations[value][5]
+                ]])
             elif value == 'name':
                 pass
             elif value == 'accession':
                 pass
             else:
-                out_file.writerows([[annotations['accession'],
-                                    value, str(annotations[value][0]) + '..' +
-                                    str(annotations[value][1]),
-                                     annotations[value][2], annotations[value][3]]])
+                out_file.writerows([[
+                    annotations['accession'], value,
+                    str(annotations[value][0]) + '..' + str(
+                        annotations[value][1]), annotations[value][2],
+                    annotations[value][3]
+                ]])
 
     return
+
+
 # ----------------------------------------------------------------------------------------
 def to_results(dict):
     del dict['genome']
     del dict['accession']
     del dict['E1BS']
     del dict['E2BS']
-
 
     all = dict['name']
     short_name = re.search('\(([^)]+)', all).group(1)
@@ -1170,12 +1261,14 @@ def to_results(dict):
         elif protein == 'URR':
             try:
                 if type(dict[protein][3]) == int:
-                    with open(results,'a') as out_file:
-                        out_file.write(">{}, {}\n".format(dict['name'],protein))
+                    with open(results, 'a') as out_file:
+                        out_file.write(">{}, {}\n".format(
+                            dict['name'], protein))
                         out_file.write("{}\n".format(dict[protein][4]))
                 else:
-                    with open(results,'a') as out_file:
-                        out_file.write(">{}, {}\n".format(dict['name'],protein))
+                    with open(results, 'a') as out_file:
+                        out_file.write(">{}, {}\n".format(
+                            dict['name'], protein))
                         out_file.write("{}\n".format(dict[protein][2]))
             except IndexError:
                 with open(results, 'a') as out_file:
@@ -1187,14 +1280,10 @@ def to_results(dict):
                 out_file.write(">{}, {} gene\n".format(dict['name'], protein))
                 out_file.write("{}\n".format(dict[protein][4]))
 
-
-
         else:
-            with open(results,'a') as out_file:
-                out_file.write(">{}, {} gene\n".format(dict['name'],protein))
+            with open(results, 'a') as out_file:
+                out_file.write(">{}, {} gene\n".format(dict['name'], protein))
                 out_file.write("{}\n".format(dict[protein][2]))
-
-
 
     return
 
@@ -1217,11 +1306,7 @@ def get_args():
         required=True)
 
     parser.add_argument(
-        '-f',
-        '--format',
-        metavar='FORMAT',
-        default='fasta',
-        help='FASTA')
+        '-f', '--format', metavar='FORMAT', default='fasta', help='FASTA')
 
     parser.add_argument(
         '-d',
@@ -1305,7 +1390,6 @@ def main():
     if not os.path.isdir(blastE1E8_dir):
         os.makedirs(blastE1E8_dir)
 
-
     valid_sites = set(
         'L1 L2 E1 E2 E4 E5 E5_delta E5_zeta E5_epsilon E6 E7 E9 E10 E2BS '
         'E1BS '
@@ -1366,15 +1450,16 @@ def main():
 
     orignalGenomeLen = len(originalGenome)
 
-    virus['name'] = name #full_name
+    virus['name'] = name  #full_name
     virus['accession'] = ID
     virus['genome'] = originalGenome
 
-    print("\nThis is the gene information for {} after making L1 end of Genome:".format(
-        virus[
-                                                                                'name']))
+    print(
+        "\nThis is the gene information for {} after making L1 end of Genome:".
+        format(virus['name']))
 
-    l1ResultExtended = findL1(extendedGenome, min_prot_len, evalue, data_dir, out_dir)
+    l1ResultExtended = findL1(extendedGenome, min_prot_len, evalue, data_dir,
+                              out_dir)
     #l1ResultNormal = findL1(originalGenome, min_prot_len, evalue, data_dir, out_dir)
     # print("l1ResultExtended:{}".format(l1ResultExtended))
     # print("l1ResultNormal:{}".format(l1ResultNormal))
@@ -1383,16 +1468,16 @@ def main():
     #  at all
     if l1ResultExtended['L1'][0] == 'RC?':
         reverseComplementGenome = Seq(extendedGenome).complement()
-        l1Result = findL1(reverseComplementGenome, min_prot_len, evalue, data_dir, out_dir)
+        l1Result = findL1(reverseComplementGenome, min_prot_len, evalue,
+                          data_dir, out_dir)
         if l1ResultExtended['L1'][0] != 'RC?':
             extendedGenome = reverseComplementGenome
-        elif l1ResultExtended['L1'][0]=='RC?':
+        elif l1ResultExtended['L1'][0] == 'RC?':
             print("PuMA cannot find an L1 protein")
             sys.exit(1)
 
-
-
-    alteredGenome = makeL1End(l1ResultExtended,originalGenome, orignalGenomeLen)
+    alteredGenome = makeL1End(l1ResultExtended, originalGenome,
+                              orignalGenomeLen)
 
     # if alteredGenome == originalGenome:
     #     print("Genomes are the same")
@@ -1409,8 +1494,6 @@ def main():
     if alteredGenomeLen != orignalGenomeLen:
         print("Genome Lengths do not match")
         sys.exit(1)
-
-
 
     # print("L1 sequence:{}".format(l1Result['L1'][2]))
     # # print("Altered Genome last 15:{}".format(alteredGenome[-15:]))
@@ -1442,8 +1525,6 @@ def main():
     # print("URRstart:{}".format(URRstart))
     # print("URRstop:{}".format(URRstop))
 
-
-
     if URRstart == alteredGenomeLen:
         URRstart = 1
     if URRstop > URRstart:
@@ -1452,12 +1533,10 @@ def main():
         URR['URR'] = [int(URRstart), int(URRstop), URRfound]
     virus.update(URR)
 
-
-    E2BS = find_E2BS(alteredGenome, URRfound, URRstart, ID, data_dir,out_dir)
+    E2BS = find_E2BS(alteredGenome, URRfound, URRstart, ID, data_dir, out_dir)
     virus.update(E2BS)
 
-    E1BS = find_E1BS(alteredGenome, URRfound, URRstart, ID,data_dir,
-                     out_dir)
+    E1BS = find_E1BS(alteredGenome, URRfound, URRstart, ID, data_dir, out_dir)
 
     virus.update(E1BS)
 
@@ -1465,11 +1544,11 @@ def main():
                                              data_dir, out_dir)
     blastResult = find_blastResults_E1E8(virus['E1'], ID, out_dir, data_dir)
 
-    E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, alteredGenome, start_splice_site,
-                      blastE1E8_dir,blastResult, data_dir)
+    E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, alteredGenome,
+                      start_splice_site, blastE1E8_dir, blastResult, data_dir)
 
-    E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, alteredGenome, start_splice_site,
-                      blastE1E8_dir,blastResult,data_dir)
+    E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, alteredGenome,
+                      start_splice_site, blastE1E8_dir, blastResult, data_dir)
     print(E8_E2)
     if E8_E2['E8^E2'] == False:
         pass
@@ -1480,10 +1559,8 @@ def main():
     else:
         virus.update(E1_E4)
 
-
-
     if csv == 'y':
-        export_to_csv(virus,out_dir)
+        export_to_csv(virus, out_dir)
     else:
         pass
 
@@ -1539,12 +1616,12 @@ def main():
                 print('{} sequence:\n{}\n'.format(name, virus[name][2]))
                 if name != 'URR':
                     print('{} translated seqeunce:\n{}\n'.format(
-                    name, virus[name][3][:-1]))
+                        name, virus[name][3][:-1]))
 
     to_pdf(virus, out_dir)
 
     if gff3 == 'y':
-        to_gff3(virus,alteredGenomeLen,out_dir)
+        to_gff3(virus, alteredGenomeLen, out_dir)
     else:
         pass
     # to_results(virus)
@@ -1556,5 +1633,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
