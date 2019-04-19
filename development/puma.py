@@ -458,7 +458,7 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
     for seq in alignment:
         align_seq.append(seq.seq)
 
-    #print(alignment)
+    print(alignment)
     for seq in align_seq:
         count_of_dashes = 0
         for letter in seq:
@@ -1713,7 +1713,7 @@ def run(args):
 
     E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, alteredGenome,
                       start_splice_site, blastE1E8_dir, blastResult, data_dir)
-    
+
     if E8_E2['E8^E2'] == False:
         pass
     else:
@@ -1735,52 +1735,52 @@ def run(args):
         del sites['genome']
         del sites['accession']
 
-    for name in sites:
-        if name == 'E2BS':
-            print("\n{} E2 binding sites found:".format(len(virus['E2BS'])))
-            for i in range(0, len(virus['E2BS'])):
-                print('\n{} start and stop position:\n{},{}\n'.format(
-                    name, virus[name][i], virus[name][i] + 11))
-                print('{} sequence:\n{}\n'.format(
-                    name,
-                    str(virus['genome'][virus['E2BS'][i] - 1:virus['E2BS'][i] +
-                                        11]).lower()))
-        elif name == 'E1BS':
-            if type(virus[name][2]) == int:
-                print('\n{} start and stop position:\n{},{},{},{}\n'.format(
-                    name, virus[name][0], virus[name][1], virus[name][2],
-                    virus[name][3]))
-                print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
-            else:
-                print('\n{} start and stop position:\n{},{}\n'.format(
-                    name, virus[name][0], virus[name][1]))
-                print('{} sequence:\n{}\n'.format(name, virus[name][2]))
-        else:
-            try:
-                if type(virus[name][3]) == int:
-                    print(
-                        '\n{} start and stop position:\n{},{},{},{}\n'.format(
-                            name, virus[name][0], virus[name][1],
-                            virus[name][2], virus[name][3]))
-                    print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
-                    if name != 'URR':
-                        print('{} translated sequnce:\n{}\n'.format(
-                            name, virus[name][5][:-1]))
-                else:
-                    print('\n{} start and stop position:\n{},{}\n'.format(
-                        name, virus[name][0], virus[name][1]))
-                    print('{} sequence:\n{}\n'.format(name, virus[name][2]))
-                    if name != 'URR':
-                        print('{} translated seqeunce:\n{}\n'.format(
-                            name, virus[name][3][:-1]))
-            except IndexError:
-                #print('Line 275:{}'.format(virus[name]))
-                print('\n{} start and stop position:\n{},{}\n'.format(
-                    name, virus[name][0], virus[name][1]))
-                print('{} sequence:\n{}\n'.format(name, virus[name][2]))
-                if name != 'URR':
-                    print('{} translated seqeunce:\n{}\n'.format(
-                        name, virus[name][3][:-1]))
+    # for name in sites:
+    #     if name == 'E2BS':
+    #         print("\n{} E2 binding sites found:".format(len(virus['E2BS'])))
+    #         for i in range(0, len(virus['E2BS'])):
+    #             print('\n{} start and stop position:\n{},{}\n'.format(
+    #                 name, virus[name][i], virus[name][i] + 11))
+    #             print('{} sequence:\n{}\n'.format(
+    #                 name,
+    #                 str(virus['genome'][virus['E2BS'][i] - 1:virus['E2BS'][i] +
+    #                                     11]).lower()))
+    #     elif name == 'E1BS':
+    #         if type(virus[name][2]) == int:
+    #             print('\n{} start and stop position:\n{},{},{},{}\n'.format(
+    #                 name, virus[name][0], virus[name][1], virus[name][2],
+    #                 virus[name][3]))
+    #             print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
+    #         else:
+    #             print('\n{} start and stop position:\n{},{}\n'.format(
+    #                 name, virus[name][0], virus[name][1]))
+    #             print('{} sequence:\n{}\n'.format(name, virus[name][2]))
+    #     else:
+    #         try:
+    #             if type(virus[name][3]) == int:
+    #                 print(
+    #                     '\n{} start and stop position:\n{},{},{},{}\n'.format(
+    #                         name, virus[name][0], virus[name][1],
+    #                         virus[name][2], virus[name][3]))
+    #                 print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
+    #                 if name != 'URR':
+    #                     print('{} translated sequnce:\n{}\n'.format(
+    #                         name, virus[name][5][:-1]))
+    #             else:
+    #                 print('\n{} start and stop position:\n{},{}\n'.format(
+    #                     name, virus[name][0], virus[name][1]))
+    #                 print('{} sequence:\n{}\n'.format(name, virus[name][2]))
+    #                 if name != 'URR':
+    #                     print('{} translated seqeunce:\n{}\n'.format(
+    #                         name, virus[name][3][:-1]))
+    #         except IndexError:
+    #             #print('Line 275:{}'.format(virus[name]))
+    #             print('\n{} start and stop position:\n{},{}\n'.format(
+    #                 name, virus[name][0], virus[name][1]))
+    #             print('{} sequence:\n{}\n'.format(name, virus[name][2]))
+    #             if name != 'URR':
+    #                 print('{} translated seqeunce:\n{}\n'.format(
+    #                     name, virus[name][3][:-1]))
 
     to_pdf(virus, out_dir)
 
