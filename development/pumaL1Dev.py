@@ -26,6 +26,10 @@ from dna_features_viewer import GraphicFeature, GraphicRecord
 def trans_orf(seq, trans_table, min_protein_length):
     """
     This functions finds all the open reading frames and translates them
+    :param seq:
+    :param trans_table:
+    :param min_protein_length:
+    :return:
     """
     ORFs = {}
     has_m = re.compile('M')
@@ -55,6 +59,14 @@ def trans_orf(seq, trans_table, min_protein_length):
 def findL1(genome, min_prot_len, evalue, data_dir, out_dir):
     """
     Finds L1 protein or returns None
+
+     :param genome:
+    :param min_prot_len:
+    :param evalue:
+    :param data_dir:
+    :param out_dir:
+    :return:
+
     """
     protein_start = {}
     protein_seq = {}
@@ -172,6 +184,11 @@ def makeL1End(l1Result, originalGenome, originalGenomeLength):
     """
     Makes L1 stop postion the last nucleotide of the genome and L1 
     stop +1 the start of the genome
+
+    :param l1Result:
+    :param originalGenome:
+    :param originalGenomeLength:
+    :return:
     """
     start = l1Result['L1'][0]
     stop = l1Result['L1'][1]
@@ -209,6 +226,17 @@ def makeL1End(l1Result, originalGenome, originalGenomeLength):
 
 
 def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
+    """
+     This function uses blast to find the different proteins in
+     the translated genome
+    
+    :param genome: 
+    :param min_prot_len: 
+    :param evalue: 
+    :param data_dir: 
+    :param out_dir: 
+    :return: 
+    """""
     protein_start = {}
     protein_seq = {}
     found_proteins = {}
@@ -334,14 +362,157 @@ def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
+def verify_E6(E6_whole, ID, data_dir, out_dir):
+    """
+    Checks E6 to see if it possible starts in the wrong place (due to some genomes
+    being linearized via E6)
+    :param E6_whole:
+    :param ID:
+    :param data_dir:
+    :param out_dir:
+    :return:
+    """
 
+    verified_E6 = {}
+
+    E6_trans = str(E6_whole[3])
+    E6_seq = str(E6_whole[2])
+
+    verify_E6_dir = os.path.join(out_dir, 'verify_E6')
+    if not os.path.isdir(verify_E6_dir):
+        os.makedirs(verify_E6_dir)
+
+    blast_subject = os.path.join(data_dir, 'blast_E6.fa')
+    blast_out = os.path.join(verify_E6_dir, 'blast_result.tab')
+
+    if os.path.isfile(blast_out):
+        os.remove(blast_out)
+
+    query_file = os.path.join(verify_E6_dir, 'query.fa')
+
+    with open(query_file, 'a') as query:
+        query.write('>{}\n'.format(ID))
+        query.write(E6_trans)
+
+    cmd = blastp(
+        query=query_file,
+        subject=blast_subject,
+        evalue=1e-10,
+        outfmt=6,
+        out=blast_out)
+
+    stdout, stderr = cmd()
+
+    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
+        print('No BLAST output "{}" (must have failed)'.format(blast_out))
+
+    blast_options = []
+    with open(blast_out) as blast_file:
+        blast_result = csv.reader(blast_file, delimiter='\t')
+        for row in blast_result:
+            blast_options.append(row[1])
+    blast_options = blast_options[0:10]
+    first_ten_known_E6 = {}  # Stores a dictionary of the 10 closest blast results
+    for options in blast_options:
+        query = options
+        csv_database = os.path.join(data_dir, 'all_pave.csv')
+
+        with open(csv_database, 'r') as csvfile:
+            read = csv.DictReader(csvfile,
+                                  ('accession',
+                                   'gene',
+                                   'positions',
+                                   'seq'))
+            for row in read:
+                if row['accession'] == query and row['gene'] == 'E6':
+                    first_ten_known_E6[query] = str(row['seq']).lower()
+
+
+
+    unaligned = os.path.join(verify_E6_dir, 'unaligned.fa')
+    aligned = os.path.join(verify_E6_dir, 'aligned.fa')
+
+    if os.path.isfile(unaligned):
+        os.remove(unaligned)
+
+    if os.path.isfile(aligned):
+        os.remove(aligned)
+
+    with open(unaligned, 'a') as sequence_file:
+        sequence_file.write(">{}\n".format('unkown'))
+        sequence_file.write("{}\n".format(E6_seq))
+
+    for key in first_ten_known_E6:
+        with open(unaligned, 'a') as sequence_file:
+            sequence_file.write(">{}\n".format(key))
+            sequence_file.write("{}\n".format(first_ten_known_E6[key]))
+
+    cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
+
+    stdout, stderr = cline()
+
+
+    align_seq = []
+    number_of_dashes = []
+    # for aln in AlignIO.read(aligned, 'fasta'):
+    #     align_seq.append(aln.seq)
+
+    alignment = AlignIO.read(aligned, 'fasta')
+
+    for seq in alignment:
+        align_seq.append(seq.seq)
+
+    #print(alignment)
+    for seq in align_seq:
+        count_of_dashes = 0
+        for letter in seq:
+            if letter == "-":
+                count_of_dashes += 1
+            if letter == 'A':
+                number_of_dashes.append(count_of_dashes)
+                break
+
+    number_of_zeros = 0
+    if 0 in number_of_dashes:
+        for num in number_of_dashes:
+            if num == 0:
+                number_of_zeros += 1
+    # print(number_of_dashes)
+    # print(number_of_zeros)
+    if number_of_zeros > 1:
+        actual_start = 0
+
+    else:
+        number_of_dashes.remove(0)
+        if all(x==number_of_dashes[0] for x in number_of_dashes):
+            actual_start = number_of_dashes[0]
+
+        else:
+            actual_start = 0
+            print("NOT ALL THE SAME")
+
+
+    new_seq = E6_seq[actual_start:]
+
+
+    verified_E6[ID] = [E6_whole[0]+actual_start+1, E6_whole[1], str(new_seq).lower(),
+        Seq(str(new_seq)).translate()]
+
+    return verified_E6
 # ----------------------------------------------------------------------------------------
-#
-#Finds the E1 binding site in the genome using the URR
-#
-
-
 def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
+    """
+    Finds the E1 binding site in the genome using the URR
+
+    :param genome:
+    :param URR:
+    :param URRstart:
+    :param ID:
+    :param data_dir:
+    :param out_dir:
+    :return:
+    """
+
     genomeLength = len(genome)
     E1BS = {}  # Storing E1BS
     startListURR = []
@@ -415,13 +586,17 @@ def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------------------
-#
-# This function finds the E2BS in a genome using the URR
-#
 def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
+    """
+    This function finds the E2BS in a genome using the URR
+    :param genome:
+    :param URR:
+    :param URRstart:
+    :param ID:
+    :param data_dir:
+    :param out_dir:
+    :return:
+    """
     genomeLength = len(genome)
     startListURR = []
     startListGenome = []
@@ -486,13 +661,14 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------------------
-#
-#Finds the E4, used for stop site for E1^E4
-#
 def find_E4(E2, genome):
+    """
+    Finds the E4, used for stop site for E1^E4
+
+    :param E2:
+    :param genome:
+    :return:
+    """
     E4 = {}
 
     trans_E2 = Seq(E2[1:len(E2)]).translate()
@@ -519,13 +695,16 @@ def find_E4(E2, genome):
 
 
 # ----------------------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------------------
-#
-#Finds the blast results for E1 and E8
-#
 def find_blastResults_E1E8(E1_whole, ID, out_dir, data_dir):
+    """
+   Finds the blast results for E1 and E8
+
+   :param E1_whole:
+   :param ID:
+   :param out_dir:
+   :param data_dir:
+   :return:
+   """
     E1_trans = str(E1_whole[3])
 
     blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
@@ -564,11 +743,21 @@ def find_blastResults_E1E8(E1_whole, ID, out_dir, data_dir):
 
 
 # ----------------------------------------------------------------------------------------
-#
-#Finds E1^E4
-#
 def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
               blastResult, data_dir):
+    """
+   Finds E1^E4
+
+   :param E1_whole:
+   :param E2_whole:
+   :param ID:
+   :param genome:
+   :param start_E4_nt:
+   :param blastE1E8_dir:
+   :param blastResult:
+   :param data_dir:
+   :return:
+   """
     E1_E4 = {}
     genome = str(genome).lower()
     E2_seq = str(E2_whole[2])
@@ -688,14 +877,21 @@ def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
 
 
 # ----------------------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------------------
-#
-#Finds E8^E2
-#
 def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
               blastResult, data_dir):
+    """
+    Finds E8^E2
+
+    :param E1_whole:
+    :param E2_whole:
+    :param ID:
+    :param genome:
+    :param startE2_nt:
+    :param blastE1E8_dir:
+    :param blastResult:
+    :param data_dir:
+    :return:
+    """
     E8_E2 = {}
     E1_seq = str(E1_whole[2])
     E1_trans = str(E1_whole[3])
@@ -859,12 +1055,17 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
 
 
 # ----------------------------------------------------------------------------------------
-#
-# ----------------------------------------------------------------------------------------
-#
-#Finds splice acceptor posistion for E1^E4 and E8^E2
-#
 def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
+    """
+   Finds splice acceptor posistion for E1^E4 and E8^E2
+
+   :param E2_whole:
+   :param ID:
+   :param genome:
+   :param data_dir:
+   :param out_dir:
+   :return:
+   """
 
     E2_trans = str(E2_whole[3])
     E2_seq = E2_whole[2]
@@ -990,13 +1191,15 @@ def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------------------
-#
-#Outputs gff3 format
-#
 def to_gff3(dict, genomelen, out_dir):
+    """
+    Outputs gff3 format
+
+    :param dict:
+    :param genomelen:
+    :param out_dir:
+    :return:
+    """
     del dict['URR']
 
     name = dict['accession']
@@ -1047,14 +1250,14 @@ def to_gff3(dict, genomelen, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
-
-# ----------------------------------------------------------------------------------------
-#
-# Genome visualization to pdf
-#
-
-
 def to_pdf(annotations, out_dir):
+    """
+   Genome visualization to pdf
+
+   :param annotations:
+   :param out_dir:
+   :return:
+   """
 
     sequence_length = len(annotations['genome'])
 
@@ -1148,13 +1351,14 @@ def to_pdf(annotations, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------------------
-#
-#Output to csv file
-#
 def export_to_csv(annotations, out_dir):
+    """
+   Output to csv file
+
+   :param annotations:
+   :param out_dir:
+   :return:
+   """
 
     csv_out = os.path.join(out_dir, 'puma_results.csv')
 
@@ -1242,6 +1446,11 @@ def export_to_csv(annotations, out_dir):
 
 # ----------------------------------------------------------------------------------------
 def to_results(dict):
+    """
+
+   :param dict:
+   :return:
+   """
     del dict['genome']
     del dict['accession']
     del dict['E1BS']
@@ -1290,6 +1499,10 @@ def to_results(dict):
 
 # ----------------------------------------------------------------------------------------
 def get_args():
+    """
+
+    :return:
+    """
     args = sys.argv
     bin = os.path.dirname(args[0])
     parser = argparse.ArgumentParser(
