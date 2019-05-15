@@ -3,7 +3,7 @@ puma library
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 0.4 New L1 additions 3/1/2019
+PuMA 0.4 New L1 additions 5/13/2019
 """
 
 from distutils.spawn import find_executable
@@ -15,6 +15,7 @@ from Bio.Alphabet import IUPAC
 from Bio.Blast.Applications import NcbiblastpCommandline as blastp
 from Bio.Blast.Applications import NcbiblastnCommandline as blastn
 from Bio.Align.Applications import MuscleCommandline
+from Bio.Align.Applications import MafftCommandline
 import os, glob, re, csv, time, operator, argparse, sys
 import warnings
 from Bio import BiopythonWarning
@@ -23,6 +24,7 @@ import shutil
 import logging
 from dna_features_viewer import GraphicFeature, GraphicRecord
 from subprocess import getstatusoutput
+from statistics import mode
 
 # test example
 def foo():
@@ -216,7 +218,6 @@ def makeL1End(l1Result, originalGenome, originalGenomeLength):
         newGenome = sequence + originalGenome  # Still has extra at the beginning
         newGenome = newGenome[:newStop]
     elif stop == originalGenomeLength:
-        print("GOT HERE")
         newGenome = originalGenome
 
     return newGenome
@@ -435,7 +436,7 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
         os.remove(aligned)
 
     with open(unaligned, 'a') as sequence_file:
-        sequence_file.write(">{}\n".format('unkown'))
+        sequence_file.write(">{}\n".format('unknown'))
         sequence_file.write("{}\n".format(E6_seq))
 
     for key in first_ten_known_E6:
@@ -444,8 +445,8 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             sequence_file.write("{}\n".format(first_ten_known_E6[key]))
 
     cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
-
     stdout, stderr = cline()
+
 
 
     align_seq = []
@@ -454,45 +455,100 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
     #     align_seq.append(aln.seq)
 
     alignment = AlignIO.read(aligned, 'fasta')
+    #print(alignment)
+    dashes = {}
+    for i, rec in enumerate(alignment):
+        rec_id = rec.id
+        seq = str(rec.seq)
+        #print(i, rec_id, seq)
+        match = re.search(r'^([-]+)', seq)
+        num_dashes = 0
+        if match:
+            dash = match.group(1)
+            num_dashes = len(dash)
 
-    for seq in alignment:
-        align_seq.append(seq.seq)
+        dashes[rec.id] = num_dashes
 
-    print(alignment)
-    for seq in align_seq:
-        count_of_dashes = 0
-        for letter in seq:
-            if letter == "-":
-                count_of_dashes += 1
-            if letter == 'A':
-                number_of_dashes.append(count_of_dashes)
-                break
+    print(dashes)
+    nums = Counter(dashes.values())
+    print("List of dashes:{}".format(nums))
+    #print('max = {}'.format(max(nums)))
 
-    number_of_zeros = 0
-    if 0 in number_of_dashes:
-        for num in number_of_dashes:
-            if num == 0:
-                number_of_zeros += 1
+    for key in dashes:
+        if dashes[key] == 0 and key == "unknown":
+            zero_seq_id = "unknown"
+        else:
+            zero_seq_id = "known"
+    # zero_seq_id = list(
+    #     map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
+    #                                  dashes.items())))[0]
+    print('Zero seq id = {}'.format(zero_seq_id))
+
+    # if len(nums) == 2 and 0 in nums and nums[0] == 1:
+    #     _ = nums.pop(0)
+    #     not_zero = list(nums.keys())[0]
+    #     print('There are just two uniq values, chop off {}'.format(not_zero))
+    #     zero_seq_id = list(
+    #         map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
+    #                                      dashes.items())))[0]
+    #     print('Zero seq id = {}'.format(zero_seq_id))
+    if 0 in nums:
+        if zero_seq_id == "unknown":
+            if len(nums) == 2 and nums[0] > 4 and nums[max(nums)] > 4:
+                actual_start = max(nums)
+            elif nums[0] > 1 and nums[max(nums)] > 6:
+                actual_start = max(nums)
+            else:
+                actual_start = 0
+        else:
+            if len(nums) > 2 and nums[max(nums)] < 4:
+                actual_start = 0
+            elif len(nums) == 2 and 0 in nums:
+                actual_start = 0
+            elif max(nums) == 0:
+                actual_start = 0
+            else:
+                actual_start = 0
+
+    # for seq in alignment:
+    #     align_seq.append(seq.seq)
+    #
+    # for seq in align_seq:
+    #     count_of_dashes = 0
+    #     for letter in seq:
+    #         if letter == "-":
+    #             count_of_dashes += 1
+    #         if letter == 'A':
+    #             number_of_dashes.append(count_of_dashes)
+    #             break
+    # logging.debug('Test')
+    # number_of_zeros = 0
+    # if 0 in number_of_dashes:
+    #     for num in number_of_dashes:
+    #         if num == 0:
+    #             number_of_zeros += 1
     # print(number_of_dashes)
     # print(number_of_zeros)
-    if number_of_zeros > 1:
-        actual_start = 0
+    # if number_of_zeros > 1:
+    #     actual_start = 0
+    #
+    # else:
+    #     number_of_dashes.remove(0)
+    #     if all(x==number_of_dashes[0] for x in number_of_dashes):
+    #         actual_start = number_of_dashes[0]
+    #
+    #     else:
+    #         #actual_start = 0
+    #         actual_start = mode(number_of_dashes)
 
-    else:
-        number_of_dashes.remove(0)
-        if all(x==number_of_dashes[0] for x in number_of_dashes):
-            actual_start = number_of_dashes[0]
 
-        else:
-            actual_start = 0
-            print("NOT ALL THE SAME")
-
-
+    print("Actual Start:{}".format(actual_start))
     new_seq = E6_seq[actual_start:]
 
 
     verified_E6[ID] = [E6_whole[0]+actual_start+1, E6_whole[1], str(new_seq).lower(),
         Seq(str(new_seq)).translate()]
+    print("E6 translated:{}".format(Seq(str(new_seq)).translate()))
 
     return verified_E6
 # ----------------------------------------------------------------------------------------
@@ -547,7 +603,7 @@ def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
         raise Exception('Failed to run fimo for E1BS')
 
     if not os.path.isfile(fimo_out):
-        logging.warn('Failed to create fimo out "{}"'.format(fimo_out))
+        logging.warning('Failed to create fimo out "{}"'.format(fimo_out))
         #print('Failed to create fimo out "{}"'.format(fimo_out))
         return
 
@@ -571,7 +627,7 @@ def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
         sequence = str(genome[int(genomestart) - 2:] +
                        genome[:genomestop]).lower()
         E1BS['E1BS'] = [
-            int(genomestart),
+            int(genomestart)-1,
             int(genomeLength), 1,
             int(genomestop), sequence
         ]
@@ -585,7 +641,7 @@ def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
         else:
             sequence = str(
                 genome[int(genomestart - 2):int(genomestop)]).lower()
-            E1BS['E1BS'] = [int(genomestart), int(genomestop), sequence]
+            E1BS['E1BS'] = [int(genomestart)-1 , int(genomestop), sequence]
 
     return E1BS
 
@@ -884,6 +940,9 @@ def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
         startE1_nt, stopE1_nt, start_E4_nt + 1, stopE4_nt, E1_E4_seq,
         E1_E4_trans
     ]
+    for aa in E1_E4_trans:
+        if aa == "*":
+            logging.warning("Stop Codons in E1^E4")
     return E1_E4
 
 
@@ -1018,7 +1077,6 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
 
     for match in re.finditer('atg', search_seq):
         startE8List.append(match.start() + tempStart)
-    print(startE8List)
     for i in range(0, len(startE8List)):
         try:
             if (stopE8 - startE8List[i]) < 15:
@@ -1027,7 +1085,6 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 del startE8List[i]
         except IndexError:
             break
-    print(startE8List)
 
     for i in range(0, len(startE8List)):
         try:
@@ -1039,29 +1096,36 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 startE8_nt = startE8List[i] + E1_whole[0]
         except IndexError:
             break
-    try:
-        if check_seq.startswith(startMotif):
-            pass
-        else:
-            startE8_nt = startE8List[0] + E1_whole[0]
 
-    except UnboundLocalError:
-        E8_E2['E8^E2'] = [0, 0, 0, 0, "Something Wrong", "Something Wrongg"]
+    if len(startE8List) == 0:
+        E8_E2['E8^E2'] = ["No E8 found"]
         return E8_E2
+
+    if check_seq.startswith(startMotif):
+        pass
+    else:
+        try:
+            startE8_nt = startE8List[0] + E1_whole[0]
+        except IndexError:
+            E8_E2['E8^E2'] = ["No E8 found"]
+            return E8_E2
 
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
 
     if startE2_nt != False:
         stopE2_nt = E2_whole[1]
 
-    E8_E2_seq = Seq(genome[startE8_nt - 1:stopE8_nt] +
-                    genome[startE2_nt:stopE2_nt])
+    E8_E2_seq = Seq(genome[startE8_nt - 1:stopE8_nt] + genome[
+    startE2_nt:stopE2_nt])
     E8_E2_trans = E8_E2_seq.translate()
 
-    E8_E2['E8^E2'] = [
-        startE8_nt, stopE8_nt, startE2_nt + 1, stopE2_nt, E8_E2_seq,
-        E8_E2_trans
-    ]
+
+    E8_E2['E8^E2'] = [startE8_nt, stopE8_nt, startE2_nt + 1, stopE2_nt, E8_E2_seq,
+            E8_E2_trans]
+
+    for aa in E8_E2_trans:
+        if aa == "*":
+            logging.debug("Stop Codons in E8^E2")
 
     return E8_E2
 
@@ -1479,7 +1543,7 @@ def to_results(dict):
 
     results_dir = os.path.join('puma_results')
 
-    results = os.path.join(results_dir, 'puma_results_3_4_19no_lower.fa')
+    results = os.path.join(results_dir, 'puma_results_5_15(4).fa')
 
     for protein in dict:
         if protein == 'name':
@@ -1534,7 +1598,7 @@ def run(args):
         }
         logging.basicConfig(level=level[debug_level])
 
-    logging.warn('run = {}'.format(args))
+    logging.warning('run = {}'.format(args))
 
     warnings.simplefilter('ignore', BiopythonWarning)
 
@@ -1601,6 +1665,16 @@ def run(args):
     # originalGenome = Seq(orignalGenome)
 
     extendedGenome = originalGenome + originalGenome[:2000]
+
+    number_of_n = 0
+    for n in str(extendedGenome).upper():
+        if n == "N":
+            number_of_n += 1
+        if number_of_n > 1:
+            raise Exception("Genome has too many N nucleotides to be used")
+            sys.exit(1)
+        else:
+            pass
 
     # print("Orginal length:{}".format(len(originalGenome)))
     # print("Extended Genome length:{}".format(len(extendedGenome)))
@@ -1683,15 +1757,16 @@ def run(args):
     URRstart = int(URRstart)
     URRstop = int(URRstop) - 1
 
-    # print("URRstart:{}".format(URRstart))
-    # print("URRstop:{}".format(URRstop))
-
     if URRstart == alteredGenomeLen:
         URRstart = 1
+    if URRstop == 0:
+        URRstop = genomelen
     if URRstop > URRstart:
         URRfound = str(alteredGenome[URRstart - 1:URRstop]).lower()
-    if URRstop > URRstart:
         URR['URR'] = [int(URRstart), int(URRstop), URRfound]
+    else:
+        URRfound = str(alteredGenome[URRstart - 1:] + alteredGenome[:URRstop]).lower()
+        URR['URR'] = [int(URRstart), int(genomelen), 1, int(URRstop), URRfound]
     virus.update(URR)
 
     E2BS = find_E2BS(alteredGenome, URRfound, URRstart, ID, data_dir, out_dir)
@@ -1704,29 +1779,41 @@ def run(args):
     if E1BS:
         virus.update(E1BS)
 
-    start_splice_site = find_splice_acceptor(virus['E2'], ID, alteredGenome,
+    try:
+        start_splice_site = find_splice_acceptor(virus['E2'], ID, alteredGenome,
                                              data_dir, out_dir)
+    except KeyError:
+        pass
+
     blastResult = find_blastResults_E1E8(virus['E1'], ID, out_dir, data_dir)
+    try:
+        E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, alteredGenome, start_splice_site,
+                          blastE1E8_dir,blastResult, data_dir)
 
-    E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, alteredGenome,
-                      start_splice_site, blastE1E8_dir, blastResult, data_dir)
-
-    E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, alteredGenome,
-                      start_splice_site, blastE1E8_dir, blastResult, data_dir)
-
-    if E8_E2['E8^E2'] == False:
+        E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, alteredGenome, start_splice_site,
+                          blastE1E8_dir,blastResult,data_dir)
+    except KeyError:
         pass
-    else:
-        virus.update(E8_E2)
-    if E1_E4['E1^E4'] == False:
-        pass
-    else:
-        virus.update(E1_E4)
 
-    if create_csv:
-        export_to_csv(virus, out_dir)
-    else:
+    try:
+
+        if E8_E2['E8^E2'] == False:
+            pass
+        elif E8_E2['E8^E2'] == ["No E8 found"]:
+            pass
+        else:
+            virus.update(E8_E2)
+        if E1_E4['E1^E4'] == False:
+            pass
+        else:
+            virus.update(E1_E4)
+    except UnboundLocalError:
         pass
+
+    # if create_csv:
+    #     export_to_csv(virus, out_dir)
+    # else:
+    #     pass
 
     if sites[0] == 'ALL':
         sites = {}
@@ -1782,12 +1869,12 @@ def run(args):
     #                 print('{} translated seqeunce:\n{}\n'.format(
     #                     name, virus[name][3][:-1]))
 
-    to_pdf(virus, out_dir)
-
-    if create_gff3:
-        to_gff3(virus, alteredGenomeLen, out_dir)
-    else:
-        pass
-    # to_results(virus)
-    # print("ALL GOOD")
+    # to_pdf(virus, out_dir)
+    #
+    # if create_gff3:
+    #     to_gff3(virus, alteredGenomeLen, out_dir)
+    # else:
+    #     pass
+    to_results(virus)
+    print("ALL GOOD")
     return 1
