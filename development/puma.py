@@ -410,22 +410,33 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             blast_options.append(row[1])
     blast_options = blast_options[0:10]
     first_ten_known_E6 = {}  # Stores a dictionary of the 10 closest blast results
-    for options in blast_options:
-        query = options
-        csv_database = os.path.join(data_dir, 'all_pave.csv')
+    # for options in blast_options:
+    #     query = options
+    #     csv_database = os.path.join(data_dir, 'all_pave.csv')
 
-        with open(csv_database, 'r') as csvfile:
-            read = csv.DictReader(csvfile,
-                                  ('accession',
-                                   'gene',
-                                   'positions',
-                                   'seq'))
-            for row in read:
-                if row['accession'] == query and row['gene'] == 'E6':
-                    first_ten_known_E6[query] = str(row['seq']).lower()
+    #     with open(csv_database, 'r') as csvfile:
+    #         read = csv.DictReader(csvfile,
+    #                               ('accession',
+    #                                'gene',
+    #                                'positions',
+    #                                'seq'))
+    #         for row in read:
+    #             if row['accession'] == query and row['gene'] == 'E6':
+    #                 first_ten_known_E6[query] = str(row['seq']).lower()
 
+    csv_database = os.path.join(data_dir, 'all_pave.csv')
 
+    with open(csv_database, 'r') as csvfile:
+        read = csv.DictReader(csvfile,
+                              ('accession',
+                               'gene',
+                               'positions',
+                               'seq'))
+        for row in read:
+            if row['accession'] in blast_options and row['gene'] == 'E6':
+                first_ten_known_E6[row['accession']] = str(row['seq']).lower()
 
+    logging.debug(first_ten_known_E6)
     unaligned = os.path.join(verify_E6_dir, 'unaligned.fa')
     aligned = os.path.join(verify_E6_dir, 'aligned.fa')
 
@@ -444,8 +455,11 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             sequence_file.write(">{}\n".format(key))
             sequence_file.write("{}\n".format(first_ten_known_E6[key]))
 
-    cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
-    stdout, stderr = cline()
+    if find_executable('muscle'):
+        cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
+        stdout, stderr = cline()
+    else:
+        raise Exception('muscle not instaled')
 
 
 
@@ -690,7 +704,7 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
 
     rv, out = getstatusoutput(str(cline))
     if rv != 0:
-        raise Exception('Failed to run fimo for E2BS')
+        raise Exception('Failed to run fimo for E2BS: {}'.format(out))
 
     if not os.path.isfile(fimo_out):
         logging.critical('Failed to create fimo out "{}"'.format(fimo_out))
@@ -1583,20 +1597,18 @@ def to_results(dict):
 def run(args):
     """main"""
 
-    log_file = args.get('log_file')
-    if log_file:
-        logging.basicConfig(filename=log_file)
+    level = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL
+    }
 
-    debug_level = args.get('debug_level')
-    if debug_level:
-        level = {
-            'debug': logging.DEBUG,
-            'info': logging.INFO,
-            'warning': logging.WARNING,
-            'error': logging.ERROR,
-            'critical': logging.CRITICAL
-        }
-        logging.basicConfig(level=level[debug_level])
+    logging.basicConfig(
+        level=level[args.get('debug_level')],
+        filename=args.get('log_file'),
+        filemode='w')
 
     logging.warning('run = {}'.format(args))
 
