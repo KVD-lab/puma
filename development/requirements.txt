@@ -1,0 +1,2 @@
+biopython==1.73
+dna_features_viewer
