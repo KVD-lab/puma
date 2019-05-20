@@ -381,7 +381,6 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
 
     blast_subject = os.path.join(data_dir, 'blast_E6.fa')
     blast_out = os.path.join(verify_E6_dir, 'blast_result.tab')
-
     if os.path.isfile(blast_out):
         os.remove(blast_out)
 
@@ -436,7 +435,6 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             if row['accession'] in blast_options and row['gene'] == 'E6':
                 first_ten_known_E6[row['accession']] = str(row['seq']).lower()
 
-    logging.debug(first_ten_known_E6)
     unaligned = os.path.join(verify_E6_dir, 'unaligned.fa')
     aligned = os.path.join(verify_E6_dir, 'aligned.fa')
 
@@ -483,20 +481,21 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
 
         dashes[rec.id] = num_dashes
 
-    print(dashes)
+    #logging.debug(dashes)
     nums = Counter(dashes.values())
-    print("List of dashes:{}".format(nums))
+    #logging.debug("List of dashes:{}".format(nums))
     #print('max = {}'.format(max(nums)))
 
     for key in dashes:
         if dashes[key] == 0 and key == "unknown":
             zero_seq_id = "unknown"
+            break
         else:
             zero_seq_id = "known"
     # zero_seq_id = list(
     #     map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
     #                                  dashes.items())))[0]
-    print('Zero seq id = {}'.format(zero_seq_id))
+    #logging.debug('Zero seq id = {}'.format(zero_seq_id))
 
     # if len(nums) == 2 and 0 in nums and nums[0] == 1:
     #     _ = nums.pop(0)
@@ -506,16 +505,36 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
     #         map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
     #                                      dashes.items())))[0]
     #     print('Zero seq id = {}'.format(zero_seq_id))
+    largest_number_dashes = 0
+    for key in nums:
+        if nums[key] > largest_number_dashes:
+            largest_number_dashes = nums[key]
+
+    #logging.debug("Largest Number of Dashes:{}".format(largest_number_dashes))
+
+    #list(nums.keys())[list(nums.values()).index(largest_number_dashes)] Gives the
+    # number of dashes that are the most recurring
+
     if 0 in nums:
         if zero_seq_id == "unknown":
-            if len(nums) == 2 and nums[0] > 4 and nums[max(nums)] > 4:
-                actual_start = max(nums)
-            elif nums[0] > 1 and nums[max(nums)] > 6:
-                actual_start = max(nums)
+            if len(nums) == 2 and nums[0] > 4 and largest_number_dashes > 4:
+                actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
+            elif nums[0] >= 1 and largest_number_dashes > 5:
+                actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
+                if "*" in str(Seq(str(E6_seq[actual_start:])).translate())[:-1]:
+                    logging.debug("MADE IT")
+                    del nums[actual_start]
+                    largest_number_dashes = 0
+                    for key in nums:
+                        if nums[key] > largest_number_dashes:
+                            largest_number_dashes = nums[key]
+                    actual_start = list(nums.keys())[list(nums.values()).index(
+                        largest_number_dashes)]
+
             else:
                 actual_start = 0
         else:
-            if len(nums) > 2 and nums[max(nums)] < 4:
+            if len(nums) > 2 and largest_number_dashes < 4:
                 actual_start = 0
             elif len(nums) == 2 and 0 in nums:
                 actual_start = 0
@@ -556,13 +575,13 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
     #         actual_start = mode(number_of_dashes)
 
 
-    print("Actual Start:{}".format(actual_start))
+    #logging.debug("Actual Start:{}".format(actual_start))
     new_seq = E6_seq[actual_start:]
 
 
     verified_E6[ID] = [E6_whole[0]+actual_start+1, E6_whole[1], str(new_seq).lower(),
         Seq(str(new_seq)).translate()]
-    print("E6 translated:{}".format(Seq(str(new_seq)).translate()))
+    #logging.debug("E6 translated:{}".format(Seq(str(new_seq)).translate()))
 
     return verified_E6
 # ----------------------------------------------------------------------------------------
@@ -742,18 +761,24 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
-def find_E4(E2, genome):
+def find_E4(E2, genome,position):
     """
     Finds the E4, used for stop site for E1^E4
 
     :param E2:
     :param genome:
+    :param position:
     :return:
     """
     E4 = {}
-
+    E4_orfs = []
     trans_E2 = Seq(E2[1:len(E2)]).translate()
-    E4protein_long = str(max(trans_E2.split("*"), key=len))
+    #print("E2 Translated:{}".format(trans_E2))
+    E4_orfs = str(trans_E2).split("*")
+    E4_orfs.sort(key=len)
+    #print("E4_orfs:{}".format(E4_orfs))
+    E4protein_long = E4_orfs[position]
+    #print("E4 Long:{}".format(E4protein_long))
     if 'M' in E4protein_long:
         M = re.search('M', E4protein_long)
         if M.start() > 41:
@@ -771,7 +796,9 @@ def find_E4(E2, genome):
     E4_nt_end = E4_nt_start + len(E4_nt)
     sequence = str(genome[int(E4_nt_start):int(E4_nt_end)]).lower()
     translated = Seq(sequence).translate()
+    #print("Full E4:{}".format(translated))
     E4['E4'] = [int(E4_nt_start) + 1, int(E4_nt_end) + 1]
+    #print("E4_dict:{}".format(E4))
     return E4
 
 
@@ -937,6 +964,8 @@ def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
 
         E1_stop.append(aligned_E1_stop)
 
+        #print("E1_Stop Options:{}".format(E1_stop))
+
     aligned_E1_stop = E1_stop[-1]
     search_seq = unknown_seq[aligned_E1_stop:aligned_E1_stop + 50].replace(
         '-', '')
@@ -944,19 +973,36 @@ def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
     stopE1_nt = (re.search(search_seq, str(genome).lower()).start()) + 1
     startE1_nt = E1_whole[0]
 
-    whole_E4 = find_E4(E2_seq, genome)
+    whole_E4 = find_E4(E2_seq, genome, -1)
+    #For when it may not always be the longest nonexistent E4, checks to make sure that
+    #  the splice acceptor site is within the found E4
+    # print(whole_E4['E4'][0])
+    # print(whole_E4['E4'][1])
+    # print(start_E4_nt)
+    position = -1
+    while ((start_E4_nt < whole_E4['E4'][0]) and (start_E4_nt < whole_E4['E4'][1])):
+        whole_E4 = find_E4(E2_seq, genome, position)
+        position = position - 1
+
+
+
     stopE4_nt = whole_E4['E4'][1] - 1
 
     E1_E4_seq = str(genome[startE1_nt - 1:stopE1_nt] +
                     genome[start_E4_nt:stopE4_nt])
-    E1_E4_trans = Seq(E1_E4_seq).translate()[:-1]
+    E1_E4_trans = Seq(E1_E4_seq).translate()
+
+    #Fixing "*" issue
+    E1_part = Seq(genome[startE1_nt - 1:stopE1_nt]).translate()
+
     E1_E4['E1^E4'] = [
         startE1_nt, stopE1_nt, start_E4_nt + 1, stopE4_nt, E1_E4_seq,
-        E1_E4_trans
-    ]
-    for aa in E1_E4_trans:
-        if aa == "*":
-            logging.warning("Stop Codons in E1^E4")
+        E1_E4_trans]
+    #print("E4:{}".format(E1_E4_trans))
+    if "*" in E1_E4_trans[:-1]:
+            print("E1 part:{}".format(E1_part))
+            print("E1_E4 Translated:{}".format(E1_E4_trans))
+            #print("E1:{}".format(E1_whole))
     return E1_E4
 
 
@@ -1078,7 +1124,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
         E8_stop.append(aligned_E8_stop)
 
     aligned_E8_stop = E8_stop[-1]
-
+    print("Aligned_E8_Stops:{}".format(aligned_E8_stop))
     search_seq = unknown_seq[aligned_E8_stop:aligned_E8_stop + 50].replace(
         '-', '')
 
@@ -1099,7 +1145,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 del startE8List[i]
         except IndexError:
             break
-
+    print("StartlistE8:{}".format(startE8List))
     for i in range(0, len(startE8List)):
         try:
             testStart = startE8List[i] + E1_whole[0]
@@ -1110,7 +1156,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 startE8_nt = startE8List[i] + E1_whole[0]
         except IndexError:
             break
-
+    print("StartlistE8:{}".format(startE8List))
     if len(startE8List) == 0:
         E8_E2['E8^E2'] = ["No E8 found"]
         return E8_E2
@@ -1132,14 +1178,19 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
     E8_E2_seq = Seq(genome[startE8_nt - 1:stopE8_nt] + genome[
     startE2_nt:stopE2_nt])
     E8_E2_trans = E8_E2_seq.translate()
+    E8_part = Seq(genome[startE8_nt - 1:stopE8_nt]).translate()
 
 
     E8_E2['E8^E2'] = [startE8_nt, stopE8_nt, startE2_nt + 1, stopE2_nt, E8_E2_seq,
             E8_E2_trans]
 
-    for aa in E8_E2_trans:
-        if aa == "*":
-            logging.debug("Stop Codons in E8^E2")
+    if "*" in E8_E2_trans[:-1]:
+        print(E8_E2)
+        print(E2_whole)
+        print("E8 part:{}".format(E8_part))
+        print("E8_E2 Translated:{}".format(E8_E2_trans))
+
+        #print("E2:{}".format(E2_whole))
 
     return E8_E2
 
@@ -1269,14 +1320,14 @@ def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
                     break
 
         aligned_starts.append(aligned_splice_start)
-
+        #print("Aligned Splice Starts:{}".format(aligned_starts))
     aligned_splice_start = aligned_starts[-1]
 
     search_seq = unknown_seq[aligned_splice_start:aligned_splice_start +
                              50].replace('-', '')
 
     startE2_nt = re.search(search_seq, str(genome).lower()).start()
-
+    print("Splice Site Start:{}".format(startE2_nt))
     return startE2_nt
 
 
@@ -1557,7 +1608,7 @@ def to_results(dict):
 
     results_dir = os.path.join('puma_results')
 
-    results = os.path.join(results_dir, 'puma_results_5_15(4).fa')
+    results = os.path.join(results_dir, 'puma_results_5_16_19(2).fa')
 
     for protein in dict:
         if protein == 'name':
@@ -1610,7 +1661,7 @@ def run(args):
         filename=args.get('log_file'),
         filemode='w')
 
-    logging.warning('run = {}'.format(args))
+    logging.warning('run = {}\n'.format(args))
 
     warnings.simplefilter('ignore', BiopythonWarning)
 
@@ -1681,10 +1732,10 @@ def run(args):
     number_of_n = 0
     for n in str(extendedGenome).upper():
         if n == "N":
+            print(n)
             number_of_n += 1
         if number_of_n > 1:
             raise Exception("Genome has too many N nucleotides to be used")
-            sys.exit(1)
         else:
             pass
 
@@ -1699,7 +1750,7 @@ def run(args):
 
     print(
         "\nThis is the gene information for {} after making L1 end of Genome:".
-        format(virus['name']))
+        format(virus['accession']))
 
     l1ResultExtended = findL1(extendedGenome, min_prot_len, evalue, data_dir,
                               out_dir)
@@ -1772,7 +1823,7 @@ def run(args):
     if URRstart == alteredGenomeLen:
         URRstart = 1
     if URRstop == 0:
-        URRstop = genomelen
+        URRstop = alteredGenomeLen
     if URRstop > URRstart:
         URRfound = str(alteredGenome[URRstart - 1:URRstop]).lower()
         URR['URR'] = [int(URRstart), int(URRstop), URRfound]
@@ -1827,13 +1878,13 @@ def run(args):
     # else:
     #     pass
 
-    if sites[0] == 'ALL':
-        sites = {}
-        sites.update(virus)
-        del sites['name']
-        del sites['genome']
-        del sites['accession']
-
+    # if sites[0] == 'ALL':
+    #     sites = {}
+    #     sites.update(virus)
+    #     del sites['name']
+    #     del sites['genome']
+    #     del sites['accession']
+    #
     # for name in sites:
     #     if name == 'E2BS':
     #         print("\n{} E2 binding sites found:".format(len(virus['E2BS'])))
@@ -1887,6 +1938,7 @@ def run(args):
     #     to_gff3(virus, alteredGenomeLen, out_dir)
     # else:
     #     pass
-    to_results(virus)
-    print("ALL GOOD")
+    #to_results(virus)
+    #logging.debug("ALL GOOD")
+    print("Please check puma-out and run.log for results")
     return 1
