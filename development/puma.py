@@ -998,10 +998,9 @@ def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
     E1_E4['E1^E4'] = [
         startE1_nt, stopE1_nt, start_E4_nt + 1, stopE4_nt, E1_E4_seq,
         E1_E4_trans]
-    #print("E4:{}".format(E1_E4_trans))
     if "*" in E1_E4_trans[:-1]:
-            print("E1 part:{}".format(E1_part))
-            print("E1_E4 Translated:{}".format(E1_E4_trans))
+            logging.debug("E1 part:{}".format(E1_part))
+            logging.debug("E1_E4 Translated:{}".format(E1_E4_trans))
             #print("E1:{}".format(E1_whole))
     return E1_E4
 
@@ -1124,7 +1123,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
         E8_stop.append(aligned_E8_stop)
 
     aligned_E8_stop = E8_stop[-1]
-    print("Aligned_E8_Stops:{}".format(aligned_E8_stop))
+    logging.debug("Aligned_E8_Stops:{}".format(aligned_E8_stop))
     search_seq = unknown_seq[aligned_E8_stop:aligned_E8_stop + 50].replace(
         '-', '')
 
@@ -1145,7 +1144,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 del startE8List[i]
         except IndexError:
             break
-    print("StartlistE8:{}".format(startE8List))
+    logging.debug("StartlistE8:{}".format(startE8List))
     for i in range(0, len(startE8List)):
         try:
             testStart = startE8List[i] + E1_whole[0]
@@ -1156,7 +1155,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 startE8_nt = startE8List[i] + E1_whole[0]
         except IndexError:
             break
-    print("StartlistE8:{}".format(startE8List))
+    logging.debug("StartlistE8:{}".format(startE8List))
     if len(startE8List) == 0:
         E8_E2['E8^E2'] = ["No E8 found"]
         return E8_E2
@@ -1185,10 +1184,10 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
             E8_E2_trans]
 
     if "*" in E8_E2_trans[:-1]:
-        print(E8_E2)
-        print(E2_whole)
-        print("E8 part:{}".format(E8_part))
-        print("E8_E2 Translated:{}".format(E8_E2_trans))
+        logging.debug(E8_E2)
+        logging.debug(E2_whole)
+        logging.debug("E8 part:{}".format(E8_part))
+        logging.debug("E8_E2 Translated:{}".format(E8_E2_trans))
 
         #print("E2:{}".format(E2_whole))
 
@@ -1327,7 +1326,7 @@ def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
                              50].replace('-', '')
 
     startE2_nt = re.search(search_seq, str(genome).lower()).start()
-    print("Splice Site Start:{}".format(startE2_nt))
+    logging.debug("Splice Site Start:{}".format(startE2_nt))
     return startE2_nt
 
 
