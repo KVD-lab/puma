@@ -24,7 +24,7 @@ import shutil
 import logging
 from dna_features_viewer import GraphicFeature, GraphicRecord
 from subprocess import getstatusoutput
-from statistics import mode
+import numpy as np
 
 # test example
 def foo():
@@ -403,12 +403,42 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
         print('No BLAST output "{}" (must have failed)'.format(blast_out))
 
     blast_options = []
+    number_over_eval = 0
+    count = 0
+    e_values = {}
     with open(blast_out) as blast_file:
         blast_result = csv.reader(blast_file, delimiter='\t')
         for row in blast_result:
-            blast_options.append(row[1])
+            count = count + 1
+            e_values[row[1]] = float(row[-2])
+            if count > 10:
+                break
+    for genome in e_values:
+        blast_options.append(genome)
+        if (e_values[genome] > float(1e-43)):
+            number_over_eval = number_over_eval + 1
+
+
+
+            # if (float(row[-2]) < float(1e-43)):
+            #
+            #     blast_options.append(row[1])
+            # else:
+            #     number_under_eval = number_under_eval + 1
+            #     blast_options.append(row[1])
+
+
+    if number_over_eval > 0:
+        print("Blast results for verifying E6 fall below "
+                        "the set confidence level. "
+                        "The results are still being reported. "
+                        "Number found below the confidence level is:{}."
+                        .format(number_over_eval))
+
+
     blast_options = blast_options[0:10]
-    first_ten_known_E6 = {}  # Stores a dictionary of the 10 closest blast results
+    logging.debug("E6 blast options:{}".format(blast_options))
+    known_E6 = {}  # Stores a dictionary of the 10 closest blast results
     # for options in blast_options:
     #     query = options
     #     csv_database = os.path.join(data_dir, 'all_pave.csv')
@@ -430,11 +460,13 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
                               ('accession',
                                'gene',
                                'positions',
-                               'seq'))
+                               'seq',
+                               'translated seq'))
         for row in read:
             if row['accession'] in blast_options and row['gene'] == 'E6':
-                first_ten_known_E6[row['accession']] = str(row['seq']).lower()
+                known_E6[row['accession']] = str(row['translated seq'])
 
+    logging.debug(known_E6)
     unaligned = os.path.join(verify_E6_dir, 'unaligned.fa')
     aligned = os.path.join(verify_E6_dir, 'aligned.fa')
 
@@ -446,33 +478,26 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
 
     with open(unaligned, 'a') as sequence_file:
         sequence_file.write(">{}\n".format('unknown'))
-        sequence_file.write("{}\n".format(E6_seq))
+        sequence_file.write("{}\n".format(E6_trans))
 
-    for key in first_ten_known_E6:
+    for key in known_E6:
         with open(unaligned, 'a') as sequence_file:
             sequence_file.write(">{}\n".format(key))
-            sequence_file.write("{}\n".format(first_ten_known_E6[key]))
+            sequence_file.write("{}\n".format(known_E6[key]))
 
     if find_executable('muscle'):
         cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
         stdout, stderr = cline()
     else:
-        raise Exception('muscle not instaled')
-
-
-
-    align_seq = []
-    number_of_dashes = []
-    # for aln in AlignIO.read(aligned, 'fasta'):
-    #     align_seq.append(aln.seq)
+        raise Exception('muscle not installed')
 
     alignment = AlignIO.read(aligned, 'fasta')
-    #print(alignment)
+    alignment_length = alignment.get_alignment_length()
+    # number_of_alignments = len(alignment)
+    print(alignment)
     dashes = {}
     for i, rec in enumerate(alignment):
-        rec_id = rec.id
         seq = str(rec.seq)
-        #print(i, rec_id, seq)
         match = re.search(r'^([-]+)', seq)
         num_dashes = 0
         if match:
@@ -480,68 +505,104 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             num_dashes = len(dash)
 
         dashes[rec.id] = num_dashes
-
-    #logging.debug(dashes)
-    nums = Counter(dashes.values())
-    #logging.debug("List of dashes:{}".format(nums))
-    #print('max = {}'.format(max(nums)))
-
     for key in dashes:
-        if dashes[key] == 0 and key == "unknown":
-            zero_seq_id = "unknown"
+        if key == "unknown":
+            unknown_dashes = dashes[key]
+
+
+
+    for i in range(1,alignment_length):
+        checked_coulmn = list(set(list(alignment[:, i])))
+        if ['M'] == checked_coulmn:
+            print("i:{}".format(i))
+            if unknown_dashes > 0:
+                actual_start = abs((i-unknown_dashes)*3)
+            else:
+                if i ==1:
+                    actual_start = i*3
+                else:
+                    actual_start = (i-1)*3
             break
         else:
-            zero_seq_id = "known"
-    # zero_seq_id = list(
-    #     map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
-    #                                  dashes.items())))[0]
-    #logging.debug('Zero seq id = {}'.format(zero_seq_id))
+            actual_start = False
 
-    # if len(nums) == 2 and 0 in nums and nums[0] == 1:
-    #     _ = nums.pop(0)
-    #     not_zero = list(nums.keys())[0]
-    #     print('There are just two uniq values, chop off {}'.format(not_zero))
-    #     zero_seq_id = list(
-    #         map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
-    #                                      dashes.items())))[0]
-    #     print('Zero seq id = {}'.format(zero_seq_id))
-    largest_number_dashes = 0
-    for key in nums:
-        if nums[key] > largest_number_dashes:
-            largest_number_dashes = nums[key]
 
-    #logging.debug("Largest Number of Dashes:{}".format(largest_number_dashes))
+    if not actual_start:
+       print("Not uniform")
+       actual_start = 0
 
-    #list(nums.keys())[list(nums.values()).index(largest_number_dashes)] Gives the
-    # number of dashes that are the most recurring
-
-    if 0 in nums:
-        if zero_seq_id == "unknown":
-            if len(nums) == 2 and nums[0] > 4 and largest_number_dashes > 4:
-                actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
-            elif nums[0] >= 1 and largest_number_dashes > 5:
-                actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
-                if "*" in str(Seq(str(E6_seq[actual_start:])).translate())[:-1]:
-                    logging.debug("MADE IT")
-                    del nums[actual_start]
-                    largest_number_dashes = 0
-                    for key in nums:
-                        if nums[key] > largest_number_dashes:
-                            largest_number_dashes = nums[key]
-                    actual_start = list(nums.keys())[list(nums.values()).index(
-                        largest_number_dashes)]
-
-            else:
-                actual_start = 0
-        else:
-            if len(nums) > 2 and largest_number_dashes < 4:
-                actual_start = 0
-            elif len(nums) == 2 and 0 in nums:
-                actual_start = 0
-            elif max(nums) == 0:
-                actual_start = 0
-            else:
-                actual_start = 0
+    # dashes = {}
+    # for i, rec in enumerate(alignment):
+    #     rec_id = rec.id
+    #     seq = str(rec.seq)
+    #     match = re.search(r'^([-]+)', seq)
+    #     num_dashes = 0
+    #     if match:
+    #         dash = match.group(1)
+    #         num_dashes = len(dash)
+    #
+    #     dashes[rec.id] = num_dashes
+    #
+    # logging.debug("Sequence dashes in alignment:{}".format(dashes))
+    # nums = Counter(dashes.values())
+    # logging.debug("List of dashes:{}".format(nums))
+    #
+    # for key in dashes:
+    #     if dashes[key] == 0 and key == "unknown":
+    #         zero_seq_id = "unknown"
+    #         break
+    #     else:
+    #         zero_seq_id = "known"
+    # # zero_seq_id = list(
+    # #     map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
+    # #                                  dashes.items())))[0]
+    # logging.debug('Zero seq id = {}'.format(zero_seq_id))
+    #
+    # # if len(nums) == 2 and 0 in nums and nums[0] == 1:
+    # #     _ = nums.pop(0)
+    # #     not_zero = list(nums.keys())[0]
+    # #     print('There are just two uniq values, chop off {}'.format(not_zero))
+    # #     zero_seq_id = list(
+    # #         map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
+    # #                                      dashes.items())))[0]
+    # #     print('Zero seq id = {}'.format(zero_seq_id))
+    # largest_number_dashes = 0
+    # for key in nums:
+    #     if nums[key] > largest_number_dashes:
+    #         largest_number_dashes = nums[key]
+    #
+    # logging.debug("Largest Number of Dashes:{}".format(largest_number_dashes))
+    #
+    # #list(nums.keys())[list(nums.values()).index(largest_number_dashes)] Gives the
+    # # number of dashes that are the most recurring
+    #
+    # if 0 in nums:
+    #     if zero_seq_id == "unknown":
+    #         if len(nums) == 2 and nums[0] > 4 and largest_number_dashes > 4:
+    #             actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
+    #         elif nums[0] >= 1 and largest_number_dashes > 5:
+    #             actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
+    #             if "*" in str(Seq(str(E6_seq[actual_start:])).translate())[:-1]:
+    #                 logging.debug("MADE IT")
+    #                 del nums[actual_start]
+    #                 largest_number_dashes = 0
+    #                 for key in nums:
+    #                     if nums[key] > largest_number_dashes:
+    #                         largest_number_dashes = nums[key]
+    #                 actual_start = list(nums.keys())[list(nums.values()).index(
+    #                     largest_number_dashes)]
+    #
+    #         else:
+    #             actual_start = 0
+    #     else:
+    #         if len(nums) > 2 and largest_number_dashes < 4:
+    #             actual_start = 0
+    #         elif len(nums) == 2 and 0 in nums:
+    #             actual_start = 0
+    #         elif max(nums) == 0:
+    #             actual_start = 0
+    #         else:
+    #             actual_start = 0
 
     # for seq in alignment:
     #     align_seq.append(seq.seq)
@@ -575,13 +636,14 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
     #         actual_start = mode(number_of_dashes)
 
 
-    #logging.debug("Actual Start:{}".format(actual_start))
+    print("Actual Start:{}".format(actual_start))
+    print("Old E6 Translation:{}".format(E6_trans))
     new_seq = E6_seq[actual_start:]
 
 
     verified_E6[ID] = [E6_whole[0]+actual_start+1, E6_whole[1], str(new_seq).lower(),
         Seq(str(new_seq)).translate()]
-    #logging.debug("E6 translated:{}".format(Seq(str(new_seq)).translate()))
+    print("New E6 translated:{}".format(Seq(str(new_seq)).translate()))
 
     return verified_E6
 # ----------------------------------------------------------------------------------------
@@ -976,9 +1038,9 @@ def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
     whole_E4 = find_E4(E2_seq, genome, -1)
     #For when it may not always be the longest nonexistent E4, checks to make sure that
     #  the splice acceptor site is within the found E4
-    # print(whole_E4['E4'][0])
-    # print(whole_E4['E4'][1])
-    # print(start_E4_nt)
+    # logging.debug("E4 Start:{}".format(whole_E4['E4'][0]))
+    # logging.debug("E4 Stop:{}".format(whole_E4['E4'][1]))
+    # logging.debug("Splice Site Staart:{}".format(start_E4_nt))
     position = -1
     while ((start_E4_nt < whole_E4['E4'][0]) and (start_E4_nt < whole_E4['E4'][1])):
         whole_E4 = find_E4(E2_seq, genome, position)
@@ -1123,7 +1185,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
         E8_stop.append(aligned_E8_stop)
 
     aligned_E8_stop = E8_stop[-1]
-    logging.debug("Aligned_E8_Stops:{}".format(aligned_E8_stop))
+    #logging.debug("Aligned_E8_Stops:{}".format(aligned_E8_stop))
     search_seq = unknown_seq[aligned_E8_stop:aligned_E8_stop + 50].replace(
         '-', '')
 
@@ -1144,7 +1206,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 del startE8List[i]
         except IndexError:
             break
-    logging.debug("StartlistE8:{}".format(startE8List))
+    #logging.debug("StartlistE8:{}".format(startE8List))
     for i in range(0, len(startE8List)):
         try:
             testStart = startE8List[i] + E1_whole[0]
@@ -1155,7 +1217,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
                 startE8_nt = startE8List[i] + E1_whole[0]
         except IndexError:
             break
-    logging.debug("StartlistE8:{}".format(startE8List))
+    #logging.debug("StartlistE8:{}".format(startE8List))
     if len(startE8List) == 0:
         E8_E2['E8^E2'] = ["No E8 found"]
         return E8_E2
@@ -1326,7 +1388,7 @@ def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
                              50].replace('-', '')
 
     startE2_nt = re.search(search_seq, str(genome).lower()).start()
-    logging.debug("Splice Site Start:{}".format(startE2_nt))
+    #makelogging.debug("Splice Site Start:{}".format(startE2_nt))
     return startE2_nt
 
 
@@ -1660,7 +1722,7 @@ def run(args):
         filename=args.get('log_file'),
         filemode='w')
 
-    logging.warning('run = {}\n'.format(args))
+    logging.info('run = {}\n'.format(args))
 
     warnings.simplefilter('ignore', BiopythonWarning)
 
@@ -1731,10 +1793,11 @@ def run(args):
     number_of_n = 0
     for n in str(extendedGenome).upper():
         if n == "N":
-            print(n)
+            logging.warning("n nucleotide found")
             number_of_n += 1
         if number_of_n > 1:
-            raise Exception("Genome has too many N nucleotides to be used")
+            logging.warning("Number of n nucleotides found:{}".format(number_of_n))
+            raise Exception("Genome has too many n nucleotides to be used")
         else:
             pass
 
