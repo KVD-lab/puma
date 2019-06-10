@@ -25,6 +25,7 @@ import logging
 from dna_features_viewer import GraphicFeature, GraphicRecord
 from subprocess import getstatusoutput
 import numpy as np
+from pprint import pprint as pp
 
 # test example
 def foo():
@@ -199,9 +200,8 @@ def makeL1End(l1Result, originalGenome, originalGenomeLength):
     start = l1Result['L1'][0]
     stop = l1Result['L1'][1]
 
-    #When gene wraps
+    #When gene wraps around
     if start < originalGenomeLength and stop > originalGenomeLength:
-        # around
         sequence = originalGenome[originalGenomeLength + 1:stop]
         newGenome = originalGenome + sequence  #Still has extra at the beginning
         newStart = len(sequence)
@@ -403,6 +403,7 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
         print('No BLAST output "{}" (must have failed)'.format(blast_out))
 
     blast_options = []
+    last_resort_blast_options = []
     number_over_eval = 0
     count = 0
     e_values = {}
@@ -414,19 +415,11 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             if count > 10:
                 break
     for genome in e_values:
-        blast_options.append(genome)
+        last_resort_blast_options.append(genome)
         if (e_values[genome] > float(1e-43)):
             number_over_eval = number_over_eval + 1
-
-
-
-            # if (float(row[-2]) < float(1e-43)):
-            #
-            #     blast_options.append(row[1])
-            # else:
-            #     number_under_eval = number_under_eval + 1
-            #     blast_options.append(row[1])
-
+        else:
+            blast_options.append(genome)
 
     if number_over_eval > 0:
         print("Blast results for verifying E6 fall below "
@@ -435,24 +428,12 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
                         "Number found below the confidence level is:{}."
                         .format(number_over_eval))
 
-
-    blast_options = blast_options[0:10]
+    if len(blast_options) == 0:
+        blast_options = last_resort_blast_options[0:10]
+    else:
+        blast_options = blast_options[0:10]
     logging.debug("E6 blast options:{}".format(blast_options))
     known_E6 = {}  # Stores a dictionary of the 10 closest blast results
-    # for options in blast_options:
-    #     query = options
-    #     csv_database = os.path.join(data_dir, 'all_pave.csv')
-
-    #     with open(csv_database, 'r') as csvfile:
-    #         read = csv.DictReader(csvfile,
-    #                               ('accession',
-    #                                'gene',
-    #                                'positions',
-    #                                'seq'))
-    #         for row in read:
-    #             if row['accession'] == query and row['gene'] == 'E6':
-    #                 first_ten_known_E6[query] = str(row['seq']).lower()
-
     csv_database = os.path.join(data_dir, 'all_pave.csv')
 
     with open(csv_database, 'r') as csvfile:
@@ -493,9 +474,11 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
 
     alignment = AlignIO.read(aligned, 'fasta')
     alignment_length = alignment.get_alignment_length()
-    # number_of_alignments = len(alignment)
-    print(alignment)
+
+    logging.debug(alignment)
     dashes = {}
+    conserved = {}
+    seq_by_id = dict([(rec.id, str(rec.seq)) for rec in alignment])
     for i, rec in enumerate(alignment):
         seq = str(rec.seq)
         match = re.search(r'^([-]+)', seq)
@@ -505,145 +488,37 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             num_dashes = len(dash)
 
         dashes[rec.id] = num_dashes
-    for key in dashes:
-        if key == "unknown":
-            unknown_dashes = dashes[key]
 
+    for i in range(0, alignment_length):
+        col = alignment[:, i]
+        conserved[i] = col.count('M')
 
+    max_num_seqs = max(conserved.values())
+    seqs_at_max = list(filter(lambda t: t[1] == max_num_seqs, conserved.items()))
+    num_of_dashes = seqs_at_max[0][0]
+    prefix = seq_by_id['unknown'][0:num_of_dashes]
+    if len(prefix) * '-' == prefix:
+        actual_start = 0
+    elif prefix.count('-') == 0:
+        #print('E6 = ', seq_by_id['unknown'][num_of_dashes:])
+        actual_start = len(prefix)*3
 
-    for i in range(1,alignment_length):
-        checked_coulmn = list(set(list(alignment[:, i])))
-        if ['M'] == checked_coulmn:
-            print("i:{}".format(i))
-            if unknown_dashes > 0:
-                actual_start = abs((i-unknown_dashes)*3)
-            else:
-                if i ==1:
-                    actual_start = i*3
-                else:
-                    actual_start = (i-1)*3
-            break
-        else:
-            actual_start = False
+    else:
+        no_dashes = len(prefix.replace('-', ''))
+        actual_start = no_dashes*3
 
-
-    if not actual_start:
-       print("Not uniform")
-       actual_start = 0
-
-    # dashes = {}
-    # for i, rec in enumerate(alignment):
-    #     rec_id = rec.id
-    #     seq = str(rec.seq)
-    #     match = re.search(r'^([-]+)', seq)
-    #     num_dashes = 0
-    #     if match:
-    #         dash = match.group(1)
-    #         num_dashes = len(dash)
-    #
-    #     dashes[rec.id] = num_dashes
-    #
-    # logging.debug("Sequence dashes in alignment:{}".format(dashes))
-    # nums = Counter(dashes.values())
-    # logging.debug("List of dashes:{}".format(nums))
-    #
-    # for key in dashes:
-    #     if dashes[key] == 0 and key == "unknown":
-    #         zero_seq_id = "unknown"
-    #         break
-    #     else:
-    #         zero_seq_id = "known"
-    # # zero_seq_id = list(
-    # #     map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
-    # #                                  dashes.items())))[0]
-    # logging.debug('Zero seq id = {}'.format(zero_seq_id))
-    #
-    # # if len(nums) == 2 and 0 in nums and nums[0] == 1:
-    # #     _ = nums.pop(0)
-    # #     not_zero = list(nums.keys())[0]
-    # #     print('There are just two uniq values, chop off {}'.format(not_zero))
-    # #     zero_seq_id = list(
-    # #         map(lambda kv: kv[0], filter(lambda kv: kv[1] == 0,
-    # #                                      dashes.items())))[0]
-    # #     print('Zero seq id = {}'.format(zero_seq_id))
-    # largest_number_dashes = 0
-    # for key in nums:
-    #     if nums[key] > largest_number_dashes:
-    #         largest_number_dashes = nums[key]
-    #
-    # logging.debug("Largest Number of Dashes:{}".format(largest_number_dashes))
-    #
-    # #list(nums.keys())[list(nums.values()).index(largest_number_dashes)] Gives the
-    # # number of dashes that are the most recurring
-    #
-    # if 0 in nums:
-    #     if zero_seq_id == "unknown":
-    #         if len(nums) == 2 and nums[0] > 4 and largest_number_dashes > 4:
-    #             actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
-    #         elif nums[0] >= 1 and largest_number_dashes > 5:
-    #             actual_start = list(nums.keys())[list(nums.values()).index(largest_number_dashes)]
-    #             if "*" in str(Seq(str(E6_seq[actual_start:])).translate())[:-1]:
-    #                 logging.debug("MADE IT")
-    #                 del nums[actual_start]
-    #                 largest_number_dashes = 0
-    #                 for key in nums:
-    #                     if nums[key] > largest_number_dashes:
-    #                         largest_number_dashes = nums[key]
-    #                 actual_start = list(nums.keys())[list(nums.values()).index(
-    #                     largest_number_dashes)]
-    #
-    #         else:
-    #             actual_start = 0
-    #     else:
-    #         if len(nums) > 2 and largest_number_dashes < 4:
-    #             actual_start = 0
-    #         elif len(nums) == 2 and 0 in nums:
-    #             actual_start = 0
-    #         elif max(nums) == 0:
-    #             actual_start = 0
-    #         else:
-    #             actual_start = 0
-
-    # for seq in alignment:
-    #     align_seq.append(seq.seq)
-    #
-    # for seq in align_seq:
-    #     count_of_dashes = 0
-    #     for letter in seq:
-    #         if letter == "-":
-    #             count_of_dashes += 1
-    #         if letter == 'A':
-    #             number_of_dashes.append(count_of_dashes)
-    #             break
-    # logging.debug('Test')
-    # number_of_zeros = 0
-    # if 0 in number_of_dashes:
-    #     for num in number_of_dashes:
-    #         if num == 0:
-    #             number_of_zeros += 1
-    # print(number_of_dashes)
-    # print(number_of_zeros)
-    # if number_of_zeros > 1:
-    #     actual_start = 0
-    #
-    # else:
-    #     number_of_dashes.remove(0)
-    #     if all(x==number_of_dashes[0] for x in number_of_dashes):
-    #         actual_start = number_of_dashes[0]
-    #
-    #     else:
-    #         #actual_start = 0
-    #         actual_start = mode(number_of_dashes)
-
-
-    print("Actual Start:{}".format(actual_start))
-    print("Old E6 Translation:{}".format(E6_trans))
+    test_seq = E6_seq[actual_start:]
+    trans = Seq(str(test_seq)).translate()
+    if str(Seq(str(test_seq)).translate())[0] != 'M':
+        actual_start = 0
+    if len(trans) <= 110:
+        actual_start = 0
+    if len(trans) >= 184:
+        logging.debug("SEQ IS TOO LONG")
     new_seq = E6_seq[actual_start:]
-
 
     verified_E6[ID] = [E6_whole[0]+actual_start+1, E6_whole[1], str(new_seq).lower(),
         Seq(str(new_seq)).translate()]
-    print("New E6 translated:{}".format(Seq(str(new_seq)).translate()))
 
     return verified_E6
 # ----------------------------------------------------------------------------------------
@@ -691,15 +566,12 @@ def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
 
     cline = (fimo_cmd.format(fimo_exe, fimo_dir, background, motif, tmp))
 
-    #os.system(str(cline))
-
     rv, out = getstatusoutput(str(cline))
     if rv != 0:
         raise Exception('Failed to run fimo for E1BS')
 
     if not os.path.isfile(fimo_out):
         logging.warning('Failed to create fimo out "{}"'.format(fimo_out))
-        #print('Failed to create fimo out "{}"'.format(fimo_out))
         return
 
     with open(fimo_out, "rU") as csvfile:
@@ -835,12 +707,9 @@ def find_E4(E2, genome,position):
     E4 = {}
     E4_orfs = []
     trans_E2 = Seq(E2[1:len(E2)]).translate()
-    #print("E2 Translated:{}".format(trans_E2))
     E4_orfs = str(trans_E2).split("*")
     E4_orfs.sort(key=len)
-    #print("E4_orfs:{}".format(E4_orfs))
     E4protein_long = E4_orfs[position]
-    #print("E4 Long:{}".format(E4protein_long))
     if 'M' in E4protein_long:
         M = re.search('M', E4protein_long)
         if M.start() > 41:
@@ -858,9 +727,7 @@ def find_E4(E2, genome,position):
     E4_nt_end = E4_nt_start + len(E4_nt)
     sequence = str(genome[int(E4_nt_start):int(E4_nt_end)]).lower()
     translated = Seq(sequence).translate()
-    #print("Full E4:{}".format(translated))
     E4['E4'] = [int(E4_nt_start) + 1, int(E4_nt_end) + 1]
-    #print("E4_dict:{}".format(E4))
     return E4
 
 
@@ -1130,23 +997,16 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
         try:
             E8_stop_genome = E8_positions.split('+')[0]
             E8_stop_genome = E8_stop_genome.split('(')[1]
-            #print(E8_stop_genome)
-
             E8_stop_genome = int(str(E8_stop_genome).split('..')[1])
-
             known_E8_stop = int(known_E8_stop.split('..')[0])
-
             E8_stop_known = (E8_stop_genome - known_E8_stop)
-
             splice_sites.append(E8_stop_known)
-
         except UnboundLocalError:
             E8_E2['E8^E2'] = False
             return E8_E2
 
         unaligned = os.path.join(blastE1E8_dir, 'unaligned.fa')
         aligned = os.path.join(blastE1E8_dir, 'aligned.fa')
-
         if os.path.isfile(unaligned):
             os.remove(unaligned)
 
@@ -1250,12 +1110,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
         logging.debug(E2_whole)
         logging.debug("E8 part:{}".format(E8_part))
         logging.debug("E8_E2 Translated:{}".format(E8_E2_trans))
-
-        #print("E2:{}".format(E2_whole))
-
     return E8_E2
-
-
 # ----------------------------------------------------------------------------------------
 def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
     """
@@ -1669,12 +1524,11 @@ def to_results(dict):
 
     results_dir = os.path.join('puma_results')
 
-    results = os.path.join(results_dir, 'puma_results_5_16_19(2).fa')
+    results = os.path.join(results_dir, 'puma_E6.fa')
 
     for protein in dict:
         if protein == 'name':
             pass
-
         elif protein == 'URR':
             try:
                 if type(dict[protein][3]) == int:
@@ -2001,6 +1855,5 @@ def run(args):
     # else:
     #     pass
     #to_results(virus)
-    #logging.debug("ALL GOOD")
     print("Please check puma-out and run.log for results")
     return 1
