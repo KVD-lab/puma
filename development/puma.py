@@ -27,9 +27,8 @@ from subprocess import getstatusoutput
 import numpy as np
 from pprint import pprint as pp
 
-# test example
-def foo():
-    return ['foo']
+class NoBLASTHits(Exception):
+    pass
 
 # ----------------------------------------------------------------------------------------
 def trans_orf(seq, min_protein_length):
@@ -112,6 +111,7 @@ def findL1(genome, min_prot_len, evalue, data_dir, out_dir):
         print("STDERR = ", stderr)
 
     if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
+        # raise NoBLASTHits
         print('No BLAST output "{}" (must have failed)'.format(blast_out))
         found_proteins['L1'] = ['RC?']  #Possible RC?
         return found_proteins
@@ -1558,27 +1558,13 @@ def to_results(dict):
 
     return
 
-
 # --------------------------------------------------
-def run(args):
-    """main"""
+def validate_args(args):
+    """
+    Validate arguments
 
-    level = {
-        'debug': logging.DEBUG,
-        'info': logging.INFO,
-        'warning': logging.WARNING,
-        'error': logging.ERROR,
-        'critical': logging.CRITICAL
-    }
-
-    logging.basicConfig(
-        level=level[args.get('debug_level')],
-        filename=args.get('log_file'),
-        filemode='w')
-
-    logging.info('run = {}\n'.format(args))
-
-    warnings.simplefilter('ignore', BiopythonWarning)
+    Returns a `dict` of arguments
+    """
 
     sites = args['sites'] if 'sites' in args else ['ALL']
     #sites = args.get('sites') or []
@@ -1626,12 +1612,90 @@ def run(args):
         msg = 'Invalid format ({}), please choose from {}'
         raise Exception(msg.format(input_format, ', '.join(valid_format)))
 
+
+    return {'sites': sites,
+            'input_file': input_file,
+            'out_dir': out_dir,
+            }
+
+
+# --------------------------------------------------
+def run(args):
+    """main"""
+
+    level = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL
+    }
+
+    logging.basicConfig(
+        level=level[args.get('debug_level')],
+        filename=args.get('log_file'),
+        filemode='w')
+
+    logging.info('run = {}\n'.format(args))
+
+    warnings.simplefilter('ignore', BiopythonWarning)
+
+    args = validate_args(args)
+
+    sites = args['sites'] if 'sites' in args else ['ALL']
+    #sites = args.get('sites') or []
+    input_file = args.get('input')
+    out_dir = args.get('outdir')
+    data_dir = args.get('data_dir')
+    input_format = args.get('format').lower()
+    min_prot_len = args.get('min_prot_len')
+    evalue = args.get('evalue')
+    create_gff3 = args.get('gff3')
+    create_csv = args.get('csv')
+    blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
+
+    # This is now in `validate_args`
+    # if not os.path.isdir(blastE1E8_dir):
+    #     os.makedirs(blastE1E8_dir)
+
+    # valid_sites = set(
+    #     'L1 L2 E1 E2 E4 E5 E5_delta E5_zeta E5_epsilon E6 E7 E9 E10 E2BS '
+    #     'E1BS '
+    #     'URR '
+    #     'ALL'.split())
+
+    # if not sites:
+    #     raise Exception('sites is required')
+
+    # if not input_file:
+    #     raise Exception("input_file is required")
+
+    # if not os.path.isfile(input_file):
+    #     raise Exception('input_file "{}" is not a file.'.format(input_file))
+
+    # if not os.path.isdir(data_dir):
+    #     raise Exception('data_dir "{}" is not a directory.'.format(data_dir))
+
+    # if not os.path.isdir(out_dir):
+    #     os.makedirs(out_dir)
+
+    # bad_sites = list(filter(lambda s: s not in valid_sites, sites))
+
+    # if bad_sites:
+    #     raise Exception('Invalid site(s): {}'.format(', '.join(bad_sites)))
+
+    # valid_format = set(['fasta', 'genbank'])
+
+    # if not input_format in valid_format:
+    #     msg = 'Invalid format ({}), please choose from {}'
+    #     raise Exception(msg.format(input_format, ', '.join(valid_format)))
+
     startStop = []
     URR = {}
     virus = {}
 
     blasted = {}
-    for seq_record in SeqIO.parse("{}".format(input_file), input_format):
+    for seq_record in SeqIO.parse("{}".format(args['input_file']), input_format):
         originalGenome = seq_record.seq
         name = seq_record.description.split(",")[0]
         ID = seq_record.name

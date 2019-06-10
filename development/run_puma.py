@@ -36,65 +36,58 @@ def get_args():
         'genome.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument(
-        '-i',
-        '--input',
-        metavar='FILE',
-        help='Path to a  fasta formatted file that ' +
-        'contains a papillomavirus genome.',
-        required=True)
+    parser.add_argument('-i',
+                        '--input',
+                        metavar='FILE',
+                        # type=argparse.FileType('r'),
+                        help=('Path to a FASTA-formatted file that '
+                              'contains a Papillomavirus genome.'),
+                        required=True)
 
-    parser.add_argument(
-        '-f',
-        '--format',
-        metavar='FORMAT',
-        choices=['fasta', 'fastq'],
-        default='fasta',
-        help='FASTA')
+    parser.add_argument('-f',
+                        '--format',
+                        metavar='FORMAT',
+                        choices=['fasta'],
+                        default='fasta',
+                        help='File format')
 
-    parser.add_argument(
-        '-d',
-        '--data_dir',
-        metavar='DIR',
-        type=str,
-        default=os.path.join(bin_dir, 'data_dir'),
-        help='Directory that has all database files for use')
+    parser.add_argument('-d',
+                        '--data_dir',
+                        metavar='DIR',
+                        type=str,
+                        default=os.path.join(bin_dir, 'data_dir'),
+                        help='Directory that has all database files for use')
 
-    parser.add_argument(
-        '-o',
-        '--outdir',
-        metavar='DIR',
-        type=str,
-        default=os.path.join(bin_dir, 'puma-out'),
-        help='Output directory')
+    parser.add_argument('-o',
+                        '--outdir',
+                        metavar='DIR',
+                        type=str,
+                        default=os.path.join(bin_dir, 'puma-out'),
+                        help='Output directory')
 
-    parser.add_argument(
-        '-g',
-        '--gff3',
-        action='store_true',
-        help='Outputs information in gff3 format')
+    parser.add_argument('-g',
+                        '--gff3',
+                        action='store_true',
+                        help='Outputs information in gff3 format')
 
-    parser.add_argument(
-        '-c',
-        '--csv',
-        action='store_true',
-        help='Outputs information in csv format')
+    parser.add_argument('-c',
+                        '--csv',
+                        action='store_true',
+                        help='Outputs information in csv format')
 
-    parser.add_argument(
-        '-e',
-        '--evalue',
-        metavar='FLOAT',
-        type=float,
-        default=0.00001,
-        help='BLAST evalue')
+    parser.add_argument('-e',
+                        '--evalue',
+                        metavar='FLOAT',
+                        type=float,
+                        default=0.00001,
+                        help='BLAST evalue')
 
-    parser.add_argument(
-        '-m',
-        '--min_prot_len',
-        metavar='NUM',
-        type=int,
-        default=25,
-        help='Minimum protein length')
+    parser.add_argument('-m',
+                        '--min_prot_len',
+                        metavar='NUM',
+                        type=int,
+                        default=25,
+                        help='Minimum protein length')
 
     parser.add_argument(
         '-s',
@@ -116,13 +109,12 @@ def get_args():
         choices=['debug', 'info', 'warning', 'error', 'critical'],
         help='Debug level')
 
-    parser.add_argument(
-        '-L',
-        '--log_file',
-        metavar='FILE',
-        type=str,
-        default='run.log',
-        help='Debug log file')
+    parser.add_argument('-L',
+                        '--log_file',
+                        metavar='FILE',
+                        type=str,
+                        default='run.log',
+                        help='Debug log file')
 
     #return parser.parse_known_args()
     return parser.parse_args()
@@ -131,7 +123,7 @@ def get_args():
 # --------------------------------------------------
 def main():
     """main"""
-    args = vars(get_args()) # make into dict
+    args = vars(get_args())  # make into dict
 
     args['sites'] = re.split(r'\s*,\s*', args['sites'].upper())
 
