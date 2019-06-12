@@ -3,7 +3,7 @@ puma library
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 0.4 New L1 additions 5/13/2019
+PuMA 0.4 New L1 additions 6/11/2019
 """
 
 from distutils.spawn import find_executable
@@ -36,7 +36,6 @@ def trans_orf(seq, min_protein_length):
     This functions finds all the open reading frames and translates them
 
     :param seq:
-    :param trans_table:
     :param min_protein_length:
     :return:
     """
@@ -65,164 +64,39 @@ def trans_orf(seq, min_protein_length):
     return ORFs
 
 # ----------------------------------------------------------------------------------------
-def findL1(genome, min_prot_len, evalue, data_dir, out_dir):
-    """
-    Finds L1 protein or returns None
-    :param genome:
-    :param min_prot_len:
-    :param evalue:
-    :param data_dir:
-    :param out_dir:
-    :return:
-    """
-    protein_start = {}
-    protein_seq = {}
-    found_proteins = {}
+def linearize_genome(original_genome,args):
 
-    orfs = trans_orf(genome, min_prot_len)
+    orignal_genome_len = len(original_genome)
+    extended_genome = original_genome + original_genome[:2000]
 
-    if not orfs:
-        raise Exception('No ORFs, must stop.')
+    if str(extended_genome).upper().count("N") > 1:
+        logging.warning("Number of n nucleotides found:{}".format(number_of_n))
+        raise Exception("Genome has too many n nucleotides to be used")
 
-    orfs_fa = os.path.join(out_dir, 'orfs.fa')
-    orfs_fh = open(orfs_fa, 'wt')
+    proteins = blast_proteins(extended_genome, args['min_prot_len'], args['e_value'],
+                       args['data_dir'],
+                       args['out_dir'])
+    l1_result_extended = proteins['L1']
+    # Determining if the reverse complement of the genome is needed and if it is a virus
+    #  at all
+    if l1_result_extended[0] == 'RC?':
+        reverse_complement_genome = Seq(extended_genome).complement()
+        l1_result_extended = blast_proteins(reverse_complement_genome, args['min_prot_len'],
+                               args['e_value'],
+                       args['data_dir'],
+                       args['out_dir'])
+        if l1_result_extended[0] != 'RC?':
+            extended_genome = reverse_complement_genome
+        elif l1_result_extended[0] == 'RC?':
+            raise Exception("PuMA cannot find an L1 protein")
+    altered_genome = make_l1_end(l1_result_extended, original_genome,
+                               orignal_genome_len)
 
-    for orf in orfs:
-        orfs_fh.write('\n'.join(['>' + str(orfs[orf]), orf, '']))
-    orfs_fh.close()
+    altered_genome_len = len(altered_genome)
+    if altered_genome_len != orignal_genome_len:
+        raise Exception("Genome Lengths do not match")
 
-    blast_sub = os.path.join(data_dir, 'main_blast.fa')
-    blast_out = os.path.join(out_dir, 'blast_resultsL1.tab')
-
-    if os.path.isfile(blast_out):
-        os.remove(blast_out)
-
-    cmd = blastp(
-        query=orfs_fa,
-        subject=blast_sub,
-        evalue=evalue,
-        outfmt=6,
-        out=blast_out)
-
-    stdout, stderr = cmd()
-    if stdout:
-        print("STDOUT = ", stdout)
-    if stderr:
-        print("STDERR = ", stderr)
-
-    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
-        # raise NoBLASTHits
-        print('No BLAST output "{}" (must have failed)'.format(blast_out))
-        found_proteins['L1'] = ['RC?']  #Possible RC?
-        return found_proteins
-
-    with open(blast_out) as tab_file:
-        for line in csv.reader(tab_file, delimiter="\t"):
-            protein_start[line[1]] = int(line[0])
-
-    with open(orfs_fa) as fasta_file:
-        for line in fasta_file:
-            for num in protein_start:
-                try:
-                    start = int(line[1:])
-                    if start == protein_start[num]:
-                        seq = next(fasta_file)
-                        protein_seq[num] = seq[:-1]
-                except:
-                    pass
-
-    for seq in protein_seq:
-        for start in protein_start:
-            if seq == start:
-                if seq == 'L1':
-                    M = re.search('M', protein_seq[seq])
-                    real_start = protein_start[start] + M.start() + M.start(
-                    ) + M.start()
-                    end = protein_start[start] + (
-                        (len(protein_seq[seq]) + 1) * 3)
-                    found_proteins['L1'] = []
-                    L1_pre = genome[(
-                        protein_start[start] + 3 * M.start()):int(end)]
-                    splice = '(C|T)(C|T)(A|C|G|T)(C|T)AG(A)TG'
-                    spliced = re.search(splice, str(L1_pre))
-                    if spliced:
-                        start_L1 = int(spliced.start()) + 6
-                        if start_L1 % 3 == 0:
-                            if start_L1 > 600:
-                                L1_post = L1_pre
-                                found_proteins['L1'] = [
-                                    int(start_L1),
-                                    int(end),
-                                    str(L1_post).lower(),
-                                    Seq(str(L1_post)).translate()
-                                ]
-                            else:
-                                L1_post = L1_pre[start_L1:]
-                                found_proteins['L1'] = [
-                                    int(real_start) + 1 + int(start_L1),
-                                    int(end),
-                                    str(L1_post).lower(),
-                                    Seq(str(L1_post)).translate()
-                                ]
-                        else:
-                            L1_post = L1_pre
-                            found_proteins['L1'] = [
-                                int(real_start) + 1,
-                                int(end),
-                                str(L1_post).lower(),
-                                Seq(str(L1_post)).translate()
-                            ]
-                    else:
-                        L1_post = L1_pre
-                        found_proteins['L1'] = [
-                            int(real_start) + 1,
-                            int(end),
-                            str(L1_post).lower(),
-                            Seq(str(L1_post)).translate()
-                        ]
-                else:
-                    pass
-
-    return found_proteins
-
-
-# ----------------------------------------------------------------------------------------
-def makeL1End(l1Result, originalGenome, originalGenomeLength):
-    """
-    Makes L1 stop postion the last nucleotide of the genome and L1
-    stop +1 the start of the genome
-
-    :param l1Result:
-    :param originalGenome:
-    :param originalGenomeLength:
-    :return:
-    """
-    start = l1Result['L1'][0]
-    stop = l1Result['L1'][1]
-
-    #When gene wraps around
-    if start < originalGenomeLength and stop > originalGenomeLength:
-        sequence = originalGenome[originalGenomeLength + 1:stop]
-        newGenome = originalGenome + sequence  #Still has extra at the beginning
-        newStart = len(sequence)
-        newGenome = newGenome[newStart + 1:]
-    elif start > originalGenomeLength and stop > originalGenomeLength:  #No wrap around
-        stop = stop - originalGenomeLength
-        sequence = originalGenome[stop + 1:]
-        newGenome = sequence + originalGenome  # Still has extra at the beginning
-        newStop = stop + len(sequence)
-        newGenome = newGenome[:newStop + 1]
-    elif start < originalGenomeLength and stop < originalGenomeLength:  #No wrap around
-        sequence = originalGenome[stop:]
-        newStop = stop + len(sequence)
-        newGenome = sequence + originalGenome  # Still has extra at the beginning
-        newGenome = newGenome[:newStop]
-    elif stop == originalGenomeLength:
-        newGenome = originalGenome
-
-    return newGenome
-
-
+    return altered_genome
 # ----------------------------------------------------------------------------------------
 def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
     """
@@ -253,7 +127,7 @@ def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
     orfs_fh.close()
 
     blast_sub = os.path.join(data_dir, 'main_blast.fa')
-    blast_out = os.path.join(out_dir, 'blast_results.tab')
+    blast_out = os.path.join(out_dir, 'blast_results_main.tab')
 
     if os.path.isfile(blast_out):
         os.remove(blast_out)
@@ -273,6 +147,10 @@ def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
 
     if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
         raise Exception('No BLAST output "{}" (must have failed)'.format(blast_out))
+        # raise NoBLASTHits
+        print('No BLAST output "{}" (must have failed)'.format(blast_out))
+        found_proteins['L1'] = ['RC?']  # Possible RC?
+        return found_proteins
 
     with open(blast_out) as tab_file:
         for line in csv.reader(tab_file, delimiter="\t"):
@@ -359,6 +237,192 @@ def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
 
 
 # ----------------------------------------------------------------------------------------
+def find_e5(virus,ID,args, data_dir,out_dir):
+
+        protein_start = {}
+        protein_seq = {}
+        found_proteins = {}
+        blast_results = {}
+        e5_sequence = virus['genome'][virus['E2'][1]-200:virus['L2'][0] + 200]
+        orfs = trans_orf(Seq(e5_sequence), 5)
+        e5_trans = Seq(e5_sequence).translate()
+
+        orfs_fa = os.path.join(out_dir, 'orfs_E5.fa')
+        orfs_fh = open(orfs_fa, 'wt')
+
+        for orf in orfs:
+            orfs_fh.write('\n'.join(['>' + str(orfs[orf]), orf, '']))
+        orfs_fh.close()
+
+        blast_sub = os.path.join(data_dir, 'blast_E5.fa')
+        blast_out = os.path.join(out_dir, 'blast_results_E5.tab')
+
+        if os.path.isfile(blast_out):
+            os.remove(blast_out)
+
+        cmd = blastp(
+            query=orfs_fa,
+            subject=blast_sub,
+            evalue= 2,#args['e_value'],
+            outfmt=6,
+            out=blast_out)
+
+        stdout, stderr = cmd()
+        if stdout:
+            print("STDOUT = ", stdout)
+        if stderr:
+            print("STDERR = ", stderr)
+        min = 100.0
+
+
+
+        #Dictionary with the key being the name of the E5 and the value being a list
+        # with the first element being the start position of the ORF , the second
+        # element is the length of the sequence and the third element being the evlaue
+        with open(blast_out) as tab_file:
+            for line in csv.reader(tab_file, delimiter="\t"):
+                blast_results[line[1]] = [line[0],line[3],line[-2]]
+
+
+        #Deletes random seqs and short seqs
+        for option in list(blast_results):
+            print(option)
+            if "_" not in option:
+                del blast_results[option]
+            if int(blast_results[option][1]) < 40:
+                del blast_results[option]
+        sys.exit(1)
+        # with open(blast_out) as tab_file:
+        #     for line in csv.reader(tab_file, delimiter="\t"):
+        #         print("Line:{}".format(line[-2]))
+        #         if float(line[-2]) < min:
+        #             min = float(line[-2])
+        #             print("Min:{}".format(min))
+        #         else:
+        #             pass
+        # with open(blast_out) as tab_file:
+        #     for line in csv.reader(tab_file, delimiter="\t"):
+        #         print("line 2")
+        #         if float(line[-2]) == min:
+        #             print("Min 2:{}".format(min))
+        #             protein_start[line[1]] = int(line[0])
+
+        with open(orfs_fa) as fasta_file:
+            for line in fasta_file:
+                for num in protein_start:
+                    try:
+                        start = int(line[1:])
+                        if start == protein_start[num]:
+                            seq = next(fasta_file)
+                            protein_seq[num] = seq[:-1]
+                    except:
+                        pass
+        print(protein_seq)
+        print("Protein start:{}".format(protein_start))
+        for seq in protein_seq:
+            for start in protein_start:
+                if seq == start:
+                    try:
+                        M = re.search('M', protein_seq[seq])
+                        real_start = protein_start[start] + M.start(
+                        ) + M.start() + M.start()
+                        end = protein_start[start] + (
+                            (len(protein_seq[seq]) + 1) * 3)
+                        sequence = str(
+                            e5_sequence[int(real_start):int(end)]).lower()
+                        translated = Seq(sequence).translate()
+                        found_proteins[seq] = [
+                            int(real_start) + 1,
+                            int(end), sequence, translated
+                        ]
+                    except AttributeError:
+                        pass
+        print("Found E5:{}".format(found_proteins))
+        start = re.search(sequence,virus['genome']).start()
+        end =  re.search(sequence,virus['genome']).end()
+        print(start+1)
+        print(end)
+        sys.exit(1)
+        return
+
+# ----------------------------------------------------------------------------------------
+
+def find_urr(blasted, altered_genome):
+    start_stop = []
+    urr = {}
+    altered_genome_len = len(altered_genome)
+    for protein in blasted:
+        if protein == 'L1':
+            start_stop.append((blasted[protein][1]))
+            urr_start = blasted[protein][1]
+        else:
+            start_stop.append(blasted[protein][0])
+
+    start_stop = sorted(start_stop)
+    # print("startStop List:{}".format(startStop))
+    for numbers in start_stop:
+        if numbers == urr_start:
+            if numbers == start_stop[-1]:
+                urr_stop = start_stop[0]
+            else:
+                position = start_stop.index(numbers)
+                urr_stop = start_stop[position + 1]
+
+    urr_start = int(urr_start)
+    urr_stop = int(urr_stop) - 1
+
+    if urr_start == altered_genome_len:
+        urr_start = 1
+    if urr_stop == 0:
+        urr_stop = altered_genome_len
+    if urr_stop > urr_start:
+        urr_found = str(altered_genome[urr_start - 1:urr_stop]).lower()
+        urr['URR'] = [int(urr_start), int(urr_stop), urr_found]
+    else:
+        urr_found = str(altered_genome[urr_start - 1:] + altered_genome[:urr_stop]).lower()
+        urr['URR'] = [int(urr_start), int(genomelen), 1, int(urr_stop), urr_found]
+
+    return urr
+
+# ----------------------------------------------------------------------------------------
+def make_l1_end(l1Result, original_genome, original_genome_length):
+    """
+    Makes L1 stop postion the last nucleotide of the genome and L1
+    stop +1 the start of the genome
+
+    :param l1Result:
+    :param original_genome:
+    :param original_genome_length:
+    :return:
+    """
+    start = l1Result[0]
+    stop = l1Result[1]
+
+    #When gene wraps around
+    if start < original_genome_length and stop > original_genome_length:
+        sequence = original_genome[original_genome_length + 1:stop]
+        new_genome = original_genome + sequence  #Still has extra at the beginning
+        new_start  = len(sequence)
+        new_genome = new_genome[new_start + 1:]
+    elif start > original_genome_length and stop > original_genome_length:  #No wrap around
+        stop = stop - original_genome_length
+        sequence = original_genome[stop + 1:]
+        new_genome = sequence + original_genome  # Still has extra at the beginning
+        new_stop = stop + len(sequence)
+        new_genome = new_genome[:new_stop + 1]
+    elif start < original_genome_length and stop < original_genome_length:  #No wrap around
+        sequence = original_genome[stop:]
+        new_stop = stop + len(sequence)
+        new_genome = sequence + original_genome  # Still has extra at the beginning
+        new_genome = new_genome[:new_stop]
+    elif stop == original_genome_length:
+        new_genome = original_genome
+
+    return new_genome
+
+
+# ----------------------------------------------------------------------------------------
+
 def verify_E6(E6_whole, ID, data_dir, out_dir):
     """
     Checks E6 to see if it is too long (in the case if the genome was linearized by E6)
@@ -380,7 +444,7 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
         os.makedirs(verify_E6_dir)
 
     blast_subject = os.path.join(data_dir, 'blast_E6.fa')
-    blast_out = os.path.join(verify_E6_dir, 'blast_result.tab')
+    blast_out = os.path.join(verify_E6_dir, 'blast_result_E6.tab')
     if os.path.isfile(blast_out):
         os.remove(blast_out)
 
@@ -1132,7 +1196,7 @@ def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
         os.makedirs(splice_acceptor_dir)
 
     blast_subject = os.path.join(data_dir, 'splice_acceptor_blast.fa')
-    blast_out = os.path.join(splice_acceptor_dir, 'blast_result.tab')
+    blast_out = os.path.join(splice_acceptor_dir, 'blast_result_splice_acceptor.tab')
 
     if os.path.isfile(blast_out):
         os.remove(blast_out)
@@ -1508,7 +1572,6 @@ def export_to_csv(annotations, out_dir):
 # ----------------------------------------------------------------------------------------
 def to_results(dict):
     """
-
     :param dict:
     :return:
     """
@@ -1557,8 +1620,65 @@ def to_results(dict):
                 out_file.write("{}\n".format(dict[protein][2]))
 
     return
+# ----------------------------------------------------------------------------------------
+def print_genome_info(args, virus):
 
-# --------------------------------------------------
+    print("\nThis is the gene information for {} after making L1 end of Genome:".
+            format(virus['accession']))
+    if args['sites'] == ['ALL']:
+        sites = {}
+        sites.update(virus)
+        del sites['name']
+        del sites['genome']
+        del sites['accession']
+    for name in sites:
+        if name == 'E2BS':
+            print("\n{} E2 binding sites found:".format(len(virus['E2BS'])))
+            for i in range(0, len(virus['E2BS'])):
+                print('\n{} start and stop position:\n{},{}\n'.format(
+                    name, virus[name][i], virus[name][i] + 11))
+                print('{} sequence:\n{}\n'.format(
+                    name,
+                    str(virus['genome'][virus['E2BS'][i] - 1:virus['E2BS'][i] +
+                                        11]).lower()))
+        elif name == 'E1BS':
+            if type(virus[name][2]) == int:
+                print('\n{} start and stop position:\n{},{},{},{}\n'.format(
+                    name, virus[name][0], virus[name][1], virus[name][2],
+                    virus[name][3]))
+                print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
+            else:
+                print('\n{} start and stop position:\n{},{}\n'.format(
+                    name, virus[name][0], virus[name][1]))
+                print('{} sequence:\n{}\n'.format(name, virus[name][2]))
+        else:
+            try:
+                if type(virus[name][3]) == int:
+                    print(
+                        '\n{} start and stop position:\n{},{},{},{}\n'.format(
+                            name, virus[name][0], virus[name][1],
+                            virus[name][2], virus[name][3]))
+                    print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
+                    if name != 'URR':
+                        print('{} translated sequnce:\n{}\n'.format(
+                            name, virus[name][5][:-1]))
+                else:
+                    print('\n{} start and stop position:\n{},{}\n'.format(
+                        name, virus[name][0], virus[name][1]))
+                    print('{} sequence:\n{}\n'.format(name, virus[name][2]))
+                    if name != 'URR':
+                        print('{} translated seqeunce:\n{}\n'.format(
+                            name, virus[name][3][:-1]))
+            except IndexError:
+                print('\n{} start and stop position:\n{},{}\n'.format(
+                    name, virus[name][0], virus[name][1]))
+                print('{} sequence:\n{}\n'.format(name, virus[name][2]))
+                if name != 'URR':
+                    print('{} translated seqeunce:\n{}\n'.format(
+                        name, virus[name][3][:-1]))
+
+    return
+# ----------------------------------------------------------------------------------------
 def validate_args(args):
     """
     Validate arguments
@@ -1573,12 +1693,12 @@ def validate_args(args):
     data_dir = args.get('data_dir')
     input_format = args.get('format').lower()
     min_prot_len = args.get('min_prot_len')
-    evalue = args.get('evalue')
+    e_value = args.get('evalue')
     create_gff3 = args.get('gff3')
     create_csv = args.get('csv')
-    blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
-    if not os.path.isdir(blastE1E8_dir):
-        os.makedirs(blastE1E8_dir)
+    blast_e1_e8_dir = os.path.join(out_dir, 'blastE1E8')
+    if not os.path.isdir(blast_e1_e8_dir):
+        os.makedirs(blast_e1_e8_dir)
 
     valid_sites = set(
         'L1 L2 E1 E2 E4 E5 E5_delta E5_zeta E5_epsilon E6 E7 E9 E10 E2BS '
@@ -1616,13 +1736,20 @@ def validate_args(args):
     return {'sites': sites,
             'input_file': input_file,
             'out_dir': out_dir,
+            'data_dir': data_dir,
+            'input_format': input_format,
+            'min_prot_len': min_prot_len,
+            'e_value': e_value,
+            'create_gff3': create_gff3,
+            'create_csv': create_csv,
+            'blast_e1_e8_dir': blast_e1_e8_dir
+
             }
-
-
 # --------------------------------------------------
 def run(args):
     """main"""
-
+    virus = {}
+    blasted = {}
     level = {
         'debug': logging.DEBUG,
         'info': logging.INFO,
@@ -1630,216 +1757,60 @@ def run(args):
         'error': logging.ERROR,
         'critical': logging.CRITICAL
     }
-
     logging.basicConfig(
         level=level[args.get('debug_level')],
         filename=args.get('log_file'),
         filemode='w')
-
     logging.info('run = {}\n'.format(args))
-
     warnings.simplefilter('ignore', BiopythonWarning)
-
     args = validate_args(args)
-
-    sites = args['sites'] if 'sites' in args else ['ALL']
-    #sites = args.get('sites') or []
-    input_file = args.get('input')
-    out_dir = args.get('outdir')
-    data_dir = args.get('data_dir')
-    input_format = args.get('format').lower()
-    min_prot_len = args.get('min_prot_len')
-    evalue = args.get('evalue')
-    create_gff3 = args.get('gff3')
-    create_csv = args.get('csv')
-    blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
-
-    # This is now in `validate_args`
-    # if not os.path.isdir(blastE1E8_dir):
-    #     os.makedirs(blastE1E8_dir)
-
-    # valid_sites = set(
-    #     'L1 L2 E1 E2 E4 E5 E5_delta E5_zeta E5_epsilon E6 E7 E9 E10 E2BS '
-    #     'E1BS '
-    #     'URR '
-    #     'ALL'.split())
-
-    # if not sites:
-    #     raise Exception('sites is required')
-
-    # if not input_file:
-    #     raise Exception("input_file is required")
-
-    # if not os.path.isfile(input_file):
-    #     raise Exception('input_file "{}" is not a file.'.format(input_file))
-
-    # if not os.path.isdir(data_dir):
-    #     raise Exception('data_dir "{}" is not a directory.'.format(data_dir))
-
-    # if not os.path.isdir(out_dir):
-    #     os.makedirs(out_dir)
-
-    # bad_sites = list(filter(lambda s: s not in valid_sites, sites))
-
-    # if bad_sites:
-    #     raise Exception('Invalid site(s): {}'.format(', '.join(bad_sites)))
-
-    # valid_format = set(['fasta', 'genbank'])
-
-    # if not input_format in valid_format:
-    #     msg = 'Invalid format ({}), please choose from {}'
-    #     raise Exception(msg.format(input_format, ', '.join(valid_format)))
-
-    startStop = []
-    URR = {}
-    virus = {}
-
-    blasted = {}
-    for seq_record in SeqIO.parse("{}".format(args['input_file']), input_format):
-        originalGenome = seq_record.seq
+    for seq_record in SeqIO.parse("{}".format(args['input_file']), args['input_format']):
+        original_genome = seq_record.seq
         name = seq_record.description.split(",")[0]
         ID = seq_record.name
-
     #full_name = name.split("|")[1]
     #ID = name.split("|")[0]
-
-    # orignalGenome = str(originalGenome).lower()
-    # originalGenome = Seq(orignalGenome)
-
-    extendedGenome = originalGenome + originalGenome[:2000]
-
-    number_of_n = 0
-    for n in str(extendedGenome).upper():
-        if n == "N":
-            logging.warning("n nucleotide found")
-            number_of_n += 1
-        if number_of_n > 1:
-            logging.warning("Number of n nucleotides found:{}".format(number_of_n))
-            raise Exception("Genome has too many n nucleotides to be used")
-        else:
-            pass
-
-    # print("Orginal length:{}".format(len(originalGenome)))
-    # print("Extended Genome length:{}".format(len(extendedGenome)))
-
-    orignalGenomeLen = len(originalGenome)
-
-    virus['name'] = name  #full_name
+    virus['name'] = name  # full_name
     virus['accession'] = ID
-    virus['genome'] = originalGenome
-
-    print(
-        "\nThis is the gene information for {} after making L1 end of Genome:".
-        format(virus['accession']))
-
-    l1ResultExtended = findL1(extendedGenome, min_prot_len, evalue, data_dir,
-                              out_dir)
-    #l1ResultNormal = findL1(originalGenome, min_prot_len, evalue, data_dir, out_dir)
-    # print("l1ResultExtended:{}".format(l1ResultExtended))
-    # print("l1ResultNormal:{}".format(l1ResultNormal))
-
-    #Determining if the reverse complement of the genome is needed and if it is a virus
-    #  at all
-    if l1ResultExtended['L1'][0] == 'RC?':
-        reverseComplementGenome = Seq(extendedGenome).complement()
-        l1Result = findL1(reverseComplementGenome, min_prot_len, evalue,
-                          data_dir, out_dir)
-        if l1ResultExtended['L1'][0] != 'RC?':
-            extendedGenome = reverseComplementGenome
-        elif l1ResultExtended['L1'][0] == 'RC?':
-            raise Exception("PuMA cannot find an L1 protein")
-
-    alteredGenome = makeL1End(l1ResultExtended, originalGenome,
-                              orignalGenomeLen)
-
-    # if alteredGenome == originalGenome:
-    #     print("Genomes are the same")
-    # else:
-    #     print("Genomes are not the same, should be the same")
-
-    alteredGenomeLen = len(alteredGenome)
-
-    # l1ResultNew = findL1(alteredGenome, min_prot_len, evalue, data_dir, out_dir)
-
-    # print("l1Result altered Genome:{}".format(l1ResultNew))
-    # print("Altered Genome len:{}".format(len(alteredGenome)))
-    # print("Altered Genome last 15:{}".format(alteredGenome[-15:]))
-    if alteredGenomeLen != orignalGenomeLen:
-        raise Exception("Genome Lengths do not match")
-
-    # print("L1 sequence:{}".format(l1Result['L1'][2]))
-    # # print("Altered Genome last 15:{}".format(alteredGenome[-15:]))
-    #
+    altered_genome = linearize_genome(original_genome,args)
+    altered_genome_len = len(altered_genome)
+    virus['genome'] = str(altered_genome).lower()
     blasted.update(
-        blast_proteins(alteredGenome, min_prot_len, evalue, data_dir, out_dir))
-
+        blast_proteins(altered_genome, args['min_prot_len'], args['e_value'],
+                       args['data_dir'],
+                       args['out_dir']))
     virus.update(blasted)
-    for protein in blasted:
-        if protein == 'L1':
-            startStop.append((blasted[protein][1]))
-            URRstart = blasted[protein][1]
-        else:
-            startStop.append(blasted[protein][0])
-
-    # Testing verify E6 function
+    E5 = find_e5(virus,ID,args,args['data_dir'],args['out_dir'])
+    #virus.update(E5)
     if 'E6' in virus.keys():
-        verified_E6 = verify_E6(virus['E6'], ID, data_dir, out_dir)
+        verified_E6 = verify_E6(virus['E6'], ID,args['data_dir'],args['out_dir'])
         del virus['E6']
         virus['E6'] = verified_E6[ID]
-
-    startStop = sorted(startStop)
-    # print("startStop List:{}".format(startStop))
-    for numbers in startStop:
-        if numbers == URRstart:
-            if numbers == startStop[-1]:
-                URRstop = startStop[0]
-            else:
-                position = startStop.index(numbers)
-                URRstop = startStop[position + 1]
-
-    URRstart = int(URRstart)
-    URRstop = int(URRstop) - 1
-
-    if URRstart == alteredGenomeLen:
-        URRstart = 1
-    if URRstop == 0:
-        URRstop = alteredGenomeLen
-    if URRstop > URRstart:
-        URRfound = str(alteredGenome[URRstart - 1:URRstop]).lower()
-        URR['URR'] = [int(URRstart), int(URRstop), URRfound]
-    else:
-        URRfound = str(alteredGenome[URRstart - 1:] + alteredGenome[:URRstop]).lower()
-        URR['URR'] = [int(URRstart), int(genomelen), 1, int(URRstop), URRfound]
+    URR = find_urr(blasted, altered_genome)
     virus.update(URR)
-
-    E2BS = find_E2BS(alteredGenome, URRfound, URRstart, ID, data_dir, out_dir)
-
+    E2BS = find_E2BS(altered_genome, virus['URR'][-1], virus['URR'][0], ID, args['data_dir'],
+                       args['out_dir'])
     if E2BS:
         virus.update(E2BS)
-
-    E1BS = find_E1BS(alteredGenome, URRfound, URRstart, ID, data_dir, out_dir)
-
+    E1BS = find_E1BS(altered_genome, virus['URR'][-1], virus['URR'][0], ID, args['data_dir'],
+                       args['out_dir'])
     if E1BS:
         virus.update(E1BS)
-
     try:
-        start_splice_site = find_splice_acceptor(virus['E2'], ID, alteredGenome,
-                                             data_dir, out_dir)
+        start_splice_site = find_splice_acceptor(virus['E2'], ID, altered_genome,
+                                                 args['data_dir'],args['out_dir'])
     except KeyError:
         pass
-
-    blastResult = find_blastResults_E1E8(virus['E1'], ID, out_dir, data_dir)
+    blast_result = find_blastResults_E1E8(virus['E1'], ID,args['out_dir'],
+                                                 args['data_dir'])
     try:
-        E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, alteredGenome, start_splice_site,
-                          blastE1E8_dir,blastResult, data_dir)
-
-        E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, alteredGenome, start_splice_site,
-                          blastE1E8_dir,blastResult,data_dir)
+        E1_E4 = find_E1E4(virus['E1'], virus['E2'], ID, altered_genome, start_splice_site,
+                          args['blast_e1_e8_dir'],blast_result, args['data_dir'])
+        E8_E2 = find_E8E2(virus['E1'], virus['E2'], ID, altered_genome, start_splice_site,
+                          args['blast_e1_e8_dir'],blast_result,args['data_dir'])
     except KeyError:
         pass
-
     try:
-
         if E8_E2['E8^E2'] == False:
             pass
         elif E8_E2['E8^E2'] == ["No E8 found"]:
@@ -1852,72 +1823,16 @@ def run(args):
             virus.update(E1_E4)
     except UnboundLocalError:
         pass
+    print_genome_info(args,virus)
 
-    # if create_csv:
-    #     export_to_csv(virus, out_dir)
-    # else:
-    #     pass
-
-    # if sites[0] == 'ALL':
-    #     sites = {}
-    #     sites.update(virus)
-    #     del sites['name']
-    #     del sites['genome']
-    #     del sites['accession']
-    #
-    # for name in sites:
-    #     if name == 'E2BS':
-    #         print("\n{} E2 binding sites found:".format(len(virus['E2BS'])))
-    #         for i in range(0, len(virus['E2BS'])):
-    #             print('\n{} start and stop position:\n{},{}\n'.format(
-    #                 name, virus[name][i], virus[name][i] + 11))
-    #             print('{} sequence:\n{}\n'.format(
-    #                 name,
-    #                 str(virus['genome'][virus['E2BS'][i] - 1:virus['E2BS'][i] +
-    #                                     11]).lower()))
-    #     elif name == 'E1BS':
-    #         if type(virus[name][2]) == int:
-    #             print('\n{} start and stop position:\n{},{},{},{}\n'.format(
-    #                 name, virus[name][0], virus[name][1], virus[name][2],
-    #                 virus[name][3]))
-    #             print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
-    #         else:
-    #             print('\n{} start and stop position:\n{},{}\n'.format(
-    #                 name, virus[name][0], virus[name][1]))
-    #             print('{} sequence:\n{}\n'.format(name, virus[name][2]))
-    #     else:
-    #         try:
-    #             if type(virus[name][3]) == int:
-    #                 print(
-    #                     '\n{} start and stop position:\n{},{},{},{}\n'.format(
-    #                         name, virus[name][0], virus[name][1],
-    #                         virus[name][2], virus[name][3]))
-    #                 print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
-    #                 if name != 'URR':
-    #                     print('{} translated sequnce:\n{}\n'.format(
-    #                         name, virus[name][5][:-1]))
-    #             else:
-    #                 print('\n{} start and stop position:\n{},{}\n'.format(
-    #                     name, virus[name][0], virus[name][1]))
-    #                 print('{} sequence:\n{}\n'.format(name, virus[name][2]))
-    #                 if name != 'URR':
-    #                     print('{} translated seqeunce:\n{}\n'.format(
-    #                         name, virus[name][3][:-1]))
-    #         except IndexError:
-    #             #print('Line 275:{}'.format(virus[name]))
-    #             print('\n{} start and stop position:\n{},{}\n'.format(
-    #                 name, virus[name][0], virus[name][1]))
-    #             print('{} sequence:\n{}\n'.format(name, virus[name][2]))
-    #             if name != 'URR':
-    #                 print('{} translated seqeunce:\n{}\n'.format(
-    #                     name, virus[name][3][:-1]))
-
-    # to_pdf(virus, out_dir)
-    #
-    # if create_gff3:
-    #     to_gff3(virus, alteredGenomeLen, out_dir)
-    # else:
-    #     pass
+    if args['create_csv']:
+        export_to_csv(virus,args['out_dir'])
+    else:
+        pass
+    to_pdf(virus,args['out_dir'])
+    if args['create_gff3']:
+        to_gff3(virus, altered_genome_len, args['out_dir'])
+    else:
+        pass
     #to_results(virus)
-    print("Please check puma-out and run.log for results")
     return 1
