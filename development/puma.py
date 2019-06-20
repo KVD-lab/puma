@@ -3,17 +3,15 @@ puma library
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 0.4 New L1 additions 6/11/2019
+PuMA 0.4 New L1, E5 variant and verify E6 additions 6/19/2019
 """
 
 from distutils.spawn import find_executable
 from Bio import SeqIO, GenBank, AlignIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from collections import Counter
 from Bio.Alphabet import IUPAC
 from Bio.Blast.Applications import NcbiblastpCommandline as blastp
-from Bio.Blast.Applications import NcbiblastnCommandline as blastn
 from Bio.Align.Applications import MuscleCommandline
 from Bio.Align.Applications import MafftCommandline
 import os, glob, re, csv, time, operator, argparse, sys
@@ -25,375 +23,22 @@ import logging
 from dna_features_viewer import GraphicFeature, GraphicRecord
 from subprocess import getstatusoutput
 import numpy as np
+import pandas as pd
 from pprint import pprint as pp
+from dire import die
 
 class NoBLASTHits(Exception):
     pass
-
-# ----------------------------------------------------------------------------------------
-def trans_orf(seq, min_protein_length):
-    """
-    This functions finds all the open reading frames and translates them
-
-    :param seq:
-    :param min_protein_length:
-    :return:
-    """
-
-    # 1 == mammal or summat
-    trans_table = 1
-
-    ORFs = {}
-    has_m = re.compile('M')
-    for frame in range(3):
-        trans = str(seq[frame:].translate(trans_table))
-        trans_len = len(trans)
-        aa_start = 0
-        aa_end = 0
-        while aa_start < trans_len:
-            aa_end = trans.find("*", aa_start)
-            if aa_end == -1:
-                aa_end = trans_len
-            if aa_end - aa_start >= min_protein_length:
-                start = frame + aa_start * 3
-                aa_seq = trans[aa_start:aa_end]
-                if has_m.search(aa_seq):
-                    ORFs[aa_seq] = start
-            aa_start = aa_end + 1
-
-    return ORFs
-
-# ----------------------------------------------------------------------------------------
-def linearize_genome(original_genome,args):
-
-    orignal_genome_len = len(original_genome)
-    extended_genome = original_genome + original_genome[:2000]
-
-    if str(extended_genome).upper().count("N") > 1:
-        logging.warning("Number of n nucleotides found:{}".format(number_of_n))
-        raise Exception("Genome has too many n nucleotides to be used")
-
-    proteins = blast_proteins(extended_genome, args['min_prot_len'], args['e_value'],
-                       args['data_dir'],
-                       args['out_dir'])
-    l1_result_extended = proteins['L1']
-    # Determining if the reverse complement of the genome is needed and if it is a virus
-    #  at all
-    if l1_result_extended[0] == 'RC?':
-        reverse_complement_genome = Seq(extended_genome).complement()
-        l1_result_extended = blast_proteins(reverse_complement_genome, args['min_prot_len'],
-                               args['e_value'],
-                       args['data_dir'],
-                       args['out_dir'])
-        if l1_result_extended[0] != 'RC?':
-            extended_genome = reverse_complement_genome
-        elif l1_result_extended[0] == 'RC?':
-            raise Exception("PuMA cannot find an L1 protein")
-    altered_genome = make_l1_end(l1_result_extended, original_genome,
-                               orignal_genome_len)
-
-    altered_genome_len = len(altered_genome)
-    if altered_genome_len != orignal_genome_len:
-        raise Exception("Genome Lengths do not match")
-
-    return altered_genome
-# ----------------------------------------------------------------------------------------
-def blast_proteins(genome, min_prot_len, evalue, data_dir, out_dir):
-    """
-    This function uses blast to find the different proteins in
-    the translated genome
-
-    :param genome:
-    :param min_prot_len:
-    :param evalue:
-    :param data_dir:
-    :param out_dir:
-    :return:
-    """
-    protein_start = {}
-    protein_seq = {}
-    found_proteins = {}
-
-    orfs = trans_orf(genome, min_prot_len)
-
-    if not orfs:
-        raise Exception('No ORFs, must stop.')
-
-    orfs_fa = os.path.join(out_dir, 'orfs.fa')
-    orfs_fh = open(orfs_fa, 'wt')
-
-    for orf in orfs:
-        orfs_fh.write('\n'.join(['>' + str(orfs[orf]), orf, '']))
-    orfs_fh.close()
-
-    blast_sub = os.path.join(data_dir, 'main_blast.fa')
-    blast_out = os.path.join(out_dir, 'blast_results_main.tab')
-
-    if os.path.isfile(blast_out):
-        os.remove(blast_out)
-
-    cmd = blastp(
-        query=orfs_fa,
-        subject=blast_sub,
-        evalue=evalue,
-        outfmt=6,
-        out=blast_out)
-
-    stdout, stderr = cmd()
-    if stdout:
-        print("STDOUT = ", stdout)
-    if stderr:
-        print("STDERR = ", stderr)
-
-    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
-        raise Exception('No BLAST output "{}" (must have failed)'.format(blast_out))
-        # raise NoBLASTHits
-        print('No BLAST output "{}" (must have failed)'.format(blast_out))
-        found_proteins['L1'] = ['RC?']  # Possible RC?
-        return found_proteins
-
-    with open(blast_out) as tab_file:
-        for line in csv.reader(tab_file, delimiter="\t"):
-            protein_start[line[1]] = int(line[0])
-
-    with open(orfs_fa) as fasta_file:
-        for line in fasta_file:
-            for num in protein_start:
-                try:
-                    start = int(line[1:])
-                    if start == protein_start[num]:
-                        seq = next(fasta_file)
-                        protein_seq[num] = seq[:-1]
-                except:
-                    pass
-
-    for seq in protein_seq:
-        for start in protein_start:
-            if seq == start:
-                if seq == 'L1':
-                    M = re.search('M', protein_seq[seq])
-                    real_start = protein_start[start] + M.start() + M.start(
-                    ) + M.start()
-                    end = protein_start[start] + (
-                        (len(protein_seq[seq]) + 1) * 3)
-                    found_proteins['L1'] = []
-                    L1_pre = genome[(
-                        protein_start[start] + 3 * M.start()):int(end)]
-                    splice = '(C|T)(C|T)(A|C|G|T)(C|T)AG(A)TG'
-                    spliced = re.search(splice, str(L1_pre))
-                    if spliced:
-                        start_L1 = int(spliced.start()) + 6
-                        if start_L1 % 3 == 0:
-                            if start_L1 > 600:
-                                L1_post = L1_pre
-                                found_proteins['L1'] = [
-                                    int(start_L1),
-                                    int(end),
-                                    str(L1_post).lower(),
-                                    Seq(str(L1_post)).translate()
-                                ]
-                            else:
-                                L1_post = L1_pre[start_L1:]
-                                found_proteins['L1'] = [
-                                    int(real_start) + 1 + int(start_L1),
-                                    int(end),
-                                    str(L1_post).lower(),
-                                    Seq(str(L1_post)).translate()
-                                ]
-                        else:
-                            L1_post = L1_pre
-                            found_proteins['L1'] = [
-                                int(real_start) + 1,
-                                int(end),
-                                str(L1_post).lower(),
-                                Seq(str(L1_post)).translate()
-                            ]
-                    else:
-                        L1_post = L1_pre
-                        found_proteins['L1'] = [
-                            int(real_start) + 1,
-                            int(end),
-                            str(L1_post).lower(),
-                            Seq(str(L1_post)).translate()
-                        ]
-                else:
-                    try:
-                        M = re.search('M', protein_seq[seq])
-                        real_start = protein_start[start] + M.start(
-                        ) + M.start() + M.start()
-                        end = protein_start[start] + (
-                            (len(protein_seq[seq]) + 1) * 3)
-                        sequence = str(
-                            genome[int(real_start):int(end)]).lower()
-                        translated = Seq(sequence).translate()
-                        found_proteins[seq] = [
-                            int(real_start) + 1,
-                            int(end), sequence, translated
-                        ]
-                    except AttributeError:
-                        pass
-
-    return found_proteins
-
-
-# ----------------------------------------------------------------------------------------
-def find_e5(virus,ID,args, data_dir,out_dir):
-
-        protein_start = {}
-        protein_seq = {}
-        found_proteins = {}
-        blast_results = {}
-        e5_sequence = virus['genome'][virus['E2'][1]-200:virus['L2'][0] + 200]
-        orfs = trans_orf(Seq(e5_sequence), 5)
-        e5_trans = Seq(e5_sequence).translate()
-
-        orfs_fa = os.path.join(out_dir, 'orfs_E5.fa')
-        orfs_fh = open(orfs_fa, 'wt')
-
-        for orf in orfs:
-            orfs_fh.write('\n'.join(['>' + str(orfs[orf]), orf, '']))
-        orfs_fh.close()
-
-        blast_sub = os.path.join(data_dir, 'blast_E5.fa')
-        blast_out = os.path.join(out_dir, 'blast_results_E5.tab')
-
-        if os.path.isfile(blast_out):
-            os.remove(blast_out)
-
-        cmd = blastp(
-            query=orfs_fa,
-            subject=blast_sub,
-            evalue= 2,#args['e_value'],
-            outfmt=6,
-            out=blast_out)
-
-        stdout, stderr = cmd()
-        if stdout:
-            print("STDOUT = ", stdout)
-        if stderr:
-            print("STDERR = ", stderr)
-        min = 100.0
-
-
-
-        #Dictionary with the key being the name of the E5 and the value being a list
-        # with the first element being the start position of the ORF , the second
-        # element is the length of the sequence and the third element being the evlaue
-        with open(blast_out) as tab_file:
-            for line in csv.reader(tab_file, delimiter="\t"):
-                blast_results[line[1]] = [line[0],line[3],line[-2]]
-
-
-        #Deletes random seqs and short seqs
-        for option in list(blast_results):
-            print(option)
-            if "_" not in option:
-                del blast_results[option]
-            if int(blast_results[option][1]) < 40:
-                del blast_results[option]
-        sys.exit(1)
-        # with open(blast_out) as tab_file:
-        #     for line in csv.reader(tab_file, delimiter="\t"):
-        #         print("Line:{}".format(line[-2]))
-        #         if float(line[-2]) < min:
-        #             min = float(line[-2])
-        #             print("Min:{}".format(min))
-        #         else:
-        #             pass
-        # with open(blast_out) as tab_file:
-        #     for line in csv.reader(tab_file, delimiter="\t"):
-        #         print("line 2")
-        #         if float(line[-2]) == min:
-        #             print("Min 2:{}".format(min))
-        #             protein_start[line[1]] = int(line[0])
-
-        with open(orfs_fa) as fasta_file:
-            for line in fasta_file:
-                for num in protein_start:
-                    try:
-                        start = int(line[1:])
-                        if start == protein_start[num]:
-                            seq = next(fasta_file)
-                            protein_seq[num] = seq[:-1]
-                    except:
-                        pass
-        print(protein_seq)
-        print("Protein start:{}".format(protein_start))
-        for seq in protein_seq:
-            for start in protein_start:
-                if seq == start:
-                    try:
-                        M = re.search('M', protein_seq[seq])
-                        real_start = protein_start[start] + M.start(
-                        ) + M.start() + M.start()
-                        end = protein_start[start] + (
-                            (len(protein_seq[seq]) + 1) * 3)
-                        sequence = str(
-                            e5_sequence[int(real_start):int(end)]).lower()
-                        translated = Seq(sequence).translate()
-                        found_proteins[seq] = [
-                            int(real_start) + 1,
-                            int(end), sequence, translated
-                        ]
-                    except AttributeError:
-                        pass
-        print("Found E5:{}".format(found_proteins))
-        start = re.search(sequence,virus['genome']).start()
-        end =  re.search(sequence,virus['genome']).end()
-        print(start+1)
-        print(end)
-        sys.exit(1)
-        return
-
-# ----------------------------------------------------------------------------------------
-
-def find_urr(blasted, altered_genome):
-    start_stop = []
-    urr = {}
-    altered_genome_len = len(altered_genome)
-    for protein in blasted:
-        if protein == 'L1':
-            start_stop.append((blasted[protein][1]))
-            urr_start = blasted[protein][1]
-        else:
-            start_stop.append(blasted[protein][0])
-
-    start_stop = sorted(start_stop)
-    # print("startStop List:{}".format(startStop))
-    for numbers in start_stop:
-        if numbers == urr_start:
-            if numbers == start_stop[-1]:
-                urr_stop = start_stop[0]
-            else:
-                position = start_stop.index(numbers)
-                urr_stop = start_stop[position + 1]
-
-    urr_start = int(urr_start)
-    urr_stop = int(urr_stop) - 1
-
-    if urr_start == altered_genome_len:
-        urr_start = 1
-    if urr_stop == 0:
-        urr_stop = altered_genome_len
-    if urr_stop > urr_start:
-        urr_found = str(altered_genome[urr_start - 1:urr_stop]).lower()
-        urr['URR'] = [int(urr_start), int(urr_stop), urr_found]
-    else:
-        urr_found = str(altered_genome[urr_start - 1:] + altered_genome[:urr_stop]).lower()
-        urr['URR'] = [int(urr_start), int(genomelen), 1, int(urr_stop), urr_found]
-
-    return urr
-
 # ----------------------------------------------------------------------------------------
 def make_l1_end(l1Result, original_genome, original_genome_length):
     """
-    Makes L1 stop postion the last nucleotide of the genome and L1
+    This function makes the L1 stop postion the last nucleotide of the genome and L1
     stop +1 the start of the genome
 
-    :param l1Result:
-    :param original_genome:
-    :param original_genome_length:
-    :return:
+    :param l1Result: protein information on L1
+    :param original_genome: nonlinearized genome
+    :param original_genome_length: nonlinearized genome length
+    :return: linearized genome based on L1
     """
     start = l1Result[0]
     stop = l1Result[1]
@@ -419,58 +64,417 @@ def make_l1_end(l1Result, original_genome, original_genome_length):
         new_genome = original_genome
 
     return new_genome
+# ----------------------------------------------------------------------------------------
+def linearize_genome(original_genome,args):
+    """
+    This function checks for possible reverse complement issue and uses make_l1_end() to
+    linearize genome based on L1
 
+    :param original_genome: user inputted PV genome
+    :param args: command line arguments, used for evalue, data_dir, out_dir, min_prot_len
+    :return: linearized based on L1 and verified genome
+    """
+
+    orignal_genome_len = len(original_genome)
+    extended_genome = original_genome + original_genome[:2000]
+
+    if str(extended_genome).upper().count("N") > 1:
+        logging.warning("Number of n nucleotides found:{}".format(number_of_n))
+        raise Exception("Genome has too many n nucleotides to be annotated")
+
+    proteins = identify_main_proteins(extended_genome,args)
+    l1_result_extended = proteins['L1']
+    # Determining if the reverse complement of the genome is needed and if it is a virus
+    #  at all
+    if l1_result_extended[0] == 'RC?':
+        reverse_complement_genome = Seq(extended_genome).complement()
+        l1_result_extended = identify_main_proteins(reverse_complement_genome,args)
+        if l1_result_extended[0] != 'RC?':
+            extended_genome = reverse_complement_genome
+        elif l1_result_extended[0] == 'RC?':
+            raise Exception("PuMA cannot find an L1 protein")
+    altered_genome = make_l1_end(l1_result_extended, original_genome,
+                               orignal_genome_len)
+
+    altered_genome_len = len(altered_genome)
+    if altered_genome_len != orignal_genome_len:
+        raise Exception("Genome Lengths do not match, there was a problem linearizing "
+                        "genome")
+
+    return altered_genome
+# ----------------------------------------------------------------------------------------
+def trans_orf(seq, min_protein_length):
+    """
+    This functions finds all the open reading frames and translates them
+
+    :param seq: PV genome
+    :param min_protein_length: default is 25 or can be changed by user, ORFs shorter
+    then value will be discarded
+    :return: a dictionary where the key is the ORF and the value is the start of the
+    ORF in the genome
+    """
+
+    # 1 == mammal or summat
+    trans_table = 1
+
+    ORFs = {}
+    has_m = re.compile('M')
+    for frame in range(3):
+        trans = str(seq[frame:].translate(trans_table))
+        trans_len = len(trans)
+        aa_start = 0
+        aa_end = 0
+        while aa_start < trans_len:
+            aa_end = trans.find("*", aa_start)
+            if aa_end == -1:
+                aa_end = trans_len
+            if aa_end - aa_start >= min_protein_length:
+                start = frame + aa_start * 3
+                aa_seq = trans[aa_start:aa_end]
+                if has_m.search(aa_seq):
+                    ORFs[aa_seq] = start
+            aa_start = aa_end + 1
+
+    return ORFs
+# ----------------------------------------------------------------------------------------
+def run_blastp(query, subject, outfile, evalue=1e-4):
+    """
+    This function runs blastp
+
+    :param query: file that contains query sequences
+    :param subject: file that contains the sequences used for blasting
+    :param outfile: the path to the file that will contain blast results if the blastp
+    is successful
+    :param evalue: threshold value for blast results, default is 1e-4 or user defined
+    :return: returns the amount of blast hits which says if the blastp was successful
+    """
+    cmd = blastp(
+        query=query,
+        subject=subject,
+        evalue=evalue,
+        outfmt=6,
+        out=outfile)
+
+    #print(cmd)
+    stdout, stderr = cmd()
+
+    #if stderr:
+    #    logging.warn("STDERR = ", stderr)
+
+    if not os.path.isfile(outfile):
+        raise Exception('No BLAST output')
+
+    if os.path.getsize(outfile) == 0:
+        return 0
+
+    return len(open(outfile).read().splitlines())
+# ----------------------------------------------------------------------------------------
+def blast_main_orfs(genome,args):
+    """
+    This functions writes the ORFs found from trans_orf() to a fasta file and calls
+    run_blastp
+
+    :param genome: linearized based on L1 genome
+    :param args: command line arguments for data_dir, min_prot_len etc.
+    :return: a list of two file paths, the first element being the blast output and the
+    second being the ORFs found
+    """
+
+    file_results = []
+    orfs = trans_orf(genome, args['min_prot_len'])
+
+    if not orfs:
+        raise Exception('No ORFs, must stop.')
+
+    orfs_fa = os.path.join(args['out_dir'], 'orfs.fa')
+    orfs_fh = open(orfs_fa, 'wt')
+
+    for orf in orfs:
+        orfs_fh.write('\n'.join(['>' + str(orfs[orf]), orf, '']))
+    orfs_fh.close()
+
+    blast_sub = os.path.join(args['data_dir'], 'main_blast.fa')
+    blast_out = os.path.join(args['out_dir'], 'blast_results_main.tab')
+
+    if os.path.isfile(blast_out):
+        os.remove(blast_out)
+    try:
+        num_hits = run_blastp(orfs_fa, blast_sub, blast_out)
+        #print('Got {} hits!'.format(num_hits))
+    except Exception as e:
+        die('EXCEPTION: {}'.format(e))
+    file_results.append(blast_out)
+    file_results.append(orfs_fa)
+    return file_results
+# ----------------------------------------------------------------------------------------
+def identify_main_proteins(genome, args):
+    """
+    This function uses the blast output and ORF files from blast_main_orfs() to
+    identify proteins except L1 and E5 variants in the ORFs
+
+    :param genome: linearized based on L1 genome
+    :param args: command line arguments for data_dir etc.
+    :return: returns a dictionary (found_proteins) where the key is the name of the
+    protein and the value is a list of start and stop positions, nucleotide seq and
+    translated seq
+    """
+    protein_start = {}
+    protein_seq = {}
+    found_proteins = {}
+
+    file_results = blast_main_orfs(genome, args)
+    blast_out = file_results[0]
+    orfs_fa = file_results[1]
+
+    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
+        found_proteins['L1'] = ['RC?']  # Possible RC?
+        return found_proteins
+
+    with open(blast_out) as tab_file:
+        for line in csv.reader(tab_file, delimiter="\t"):
+            protein_start[line[1]] = int(line[0])
+
+    with open(orfs_fa) as fasta_file:
+        for line in fasta_file:
+            for num in protein_start:
+                try:
+                    start = int(line[1:])
+                    if start == protein_start[num]:
+                        seq = next(fasta_file)
+                        protein_seq[num] = seq[:-1]
+                except:
+                    pass
+
+    for seq in protein_seq:
+        for start in protein_start:
+            if seq == start:
+                if seq == 'L1':
+                    found_proteins.update(identify_l1(genome,protein_seq[seq],
+                        protein_start[start]))
+                else:
+                    try:
+                        M = re.search('M', protein_seq[seq])
+                        real_start = protein_start[start] + M.start(
+                        ) + M.start() + M.start()
+                        end = protein_start[start] + (
+                            (len(protein_seq[seq]) + 1) * 3)
+                        sequence = str(
+                            genome[int(real_start):int(end)]).lower()
+                        translated = Seq(sequence).translate()
+                        found_proteins[seq] = [
+                            int(real_start) + 1,
+                            int(end), sequence, translated
+                        ]
+                    except AttributeError:
+                        pass
+
+    return found_proteins
+# ----------------------------------------------------------------------------------------
+def identify_l1(genome,sequence, start):
+    """
+    This function identifies the L1 from the blast results and ORFs
+
+    :param genome: linearized based on L1 genome
+    :param sequence: ORF identfied as having a potential L1
+    :param start: ORF start position in genome
+    :return: dictionary with the key being L1 and the value is a list of start and stop
+    positions, nucleotide seq and translated seq
+    """
+    found_proteins = {}
+    M = re.search('M', sequence)
+    real_start = start + M.start() + M.start(
+    ) + M.start()
+    end = start + ((len(sequence) + 1) * 3)
+    found_proteins['L1'] = []
+    L1_pre = genome[(start + 3 * M.start()):int(end)]
+    splice = '(C|T)(C|T)(A|C|G|T)(C|T)AG(A)TG'
+    spliced = re.search(splice, str(L1_pre))
+    if spliced:
+        start_L1 = int(spliced.start()) + 6
+        if start_L1 % 3 == 0:
+            if start_L1 > 600:
+                L1_post = L1_pre
+                found_proteins['L1'] = [
+                    int(start_L1),
+                    int(end),
+                    str(L1_post).lower(),
+                    Seq(str(L1_post)).translate()
+                ]
+            else:
+                L1_post = L1_pre[start_L1:]
+                found_proteins['L1'] = [
+                    int(real_start) + 1 + int(start_L1),
+                    int(end),
+                    str(L1_post).lower(),
+                    Seq(str(L1_post)).translate()
+                ]
+        else:
+            L1_post = L1_pre
+            found_proteins['L1'] = [
+                int(real_start) + 1,
+                int(end),
+                str(L1_post).lower(),
+                Seq(str(L1_post)).translate()
+            ]
+    else:
+        L1_post = L1_pre
+        found_proteins['L1'] = [
+            int(real_start) + 1,
+            int(end),
+            str(L1_post).lower(),
+            Seq(str(L1_post)).translate()
+        ]
+    return found_proteins
 
 # ----------------------------------------------------------------------------------------
-
-def verify_E6(E6_whole, ID, data_dir, out_dir):
+def blast_e5_variants(virus,args):
     """
-    Checks E6 to see if it is too long (in the case if the genome was linearized by E6)
+    This function uses a sequence 200 nucleotides at the end of E2 to 200 nucleotides
+    into L2 find ORFs to be blasted to potentially locate E5 variants
 
-    :param E6_whole:
-    :param ID:
-    :param data_dir:
-    :param out_dir:
-    :return:
+    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: a list of two file paths, the first element being the blast output and the
+    second being the ORFs found
     """
+    file_results = []
+    data_dir = args['data_dir']
+    out_dir = args['out_dir']
+    e5_sequence = virus['genome'][virus['E2'][1]-200:virus['L2'][0] + 200]
+    orfs = trans_orf(Seq(e5_sequence), 5)
+    orfs_fa = os.path.join(out_dir, 'orfs_E5.fa')
+    orfs_fh = open(orfs_fa, 'wt')
+    for orf in orfs:
+        orfs_fh.write('\n'.join(['>' + str(orfs[orf]), orf, '']))
+    orfs_fh.close()
+    blast_sub = os.path.join(data_dir, 'blast_E5.fa')
+    blast_out = os.path.join(out_dir, 'blast_results_E5.tab')
+    if os.path.isfile(blast_out):
+        os.remove(blast_out)
+    try:
+        num_hits = run_blastp(orfs_fa, blast_sub, blast_out, evalue=2)
+        #print('Got {} hits!'.format(num_hits))
+    except Exception as e:
+        die('EXCEPTION: {}'.format(e))
 
-    verified_E6 = {}
+    file_results.append(blast_out)
+    file_results.append(orfs_fa)
 
-    E6_trans = str(E6_whole[3])
-    E6_seq = str(E6_whole[2])
+    return file_results
+# ----------------------------------------------------------------------------------------
+def identify_e5_variants(virus, args):
+    """
+    This function searches the linearized genome for possible E5_ALPHA, BETA, DELTA,
+    EPSILON, GAMA, ZETA
 
+    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: dictionary, either empty of with found E5 variants
+    """
+    protein_seq = {}
+    found_proteins = {}
+    file_results = blast_e5_variants(virus,args)
+    blast_out = file_results[0]
+    orfs_fa = file_results[1]
+    hdrs = ('qseqid sseqid pident length mismatch gapopen qstart '
+            'qend sstart send evalue bitscore').split()
+    df = pd.read_csv(blast_out, sep='\t', names=hdrs)
+    evalue = 1e-1
+    wanted = df[df.apply(lambda x: '_' in x['sseqid']
+                                   and x['evalue'] < evalue,axis=1)]
+    if len(wanted) < 1:
+        return found_proteins
+    protein_start = dict(zip(wanted['sseqid'], wanted['qseqid']))
+    orfs_dict = {}
+    with open(orfs_fa) as fasta_file:
+        for line in fasta_file:
+            if line[0] == '>':
+                start = int(line[1:])
+                orf_seq = next(fasta_file)
+                orf_seq = str(orf_seq).replace("\n","")
+                orfs_dict[start] = orf_seq
+    for start in protein_start:
+        if protein_start[start] in orfs_dict:
+            protein_seq[protein_start[start]] = orfs_dict[protein_start[start]]
+    for seq in protein_seq:
+        for start in protein_start:
+            if seq == protein_start[start]:
+                try:
+                    M = re.search('M', protein_seq[seq])
+                    real_start = protein_start[start] + M.start(
+                    ) + M.start() + M.start()
+                    end = protein_start[start] + (
+                        (len(protein_seq[seq]) + 1) * 3)
+                    sequence = str(
+                        e5_sequence[int(real_start):int(end)]).lower()
+                    translated = Seq(sequence).translate()
+                    genome_start = re.search(sequence, virus['genome']).start()
+                    genome_end = re.search(sequence, virus['genome']).end()
+                    found_proteins[start] = [
+                        int(genome_start) + 1,
+                        int(genome_end), sequence, translated
+                    ]
+                except AttributeError:
+                    pass
+    for e5 in list(found_proteins):
+        if len(found_proteins[e5][3]) < 40:
+            del found_proteins[e5]
+    return found_proteins
+
+# ----------------------------------------------------------------------------------------
+def blast_verify_e6(virus, args):
+    """
+    This function blasts the found E6 agaisnt all E6s in PaVE
+
+    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: file path to blast output
+    """
+    E6_trans = str(virus['E6'][3])
+    out_dir = args['out_dir']
+    data_dir = args['data_dir']
     verify_E6_dir = os.path.join(out_dir, 'verify_E6')
+    ID = virus['accession']
+
     if not os.path.isdir(verify_E6_dir):
         os.makedirs(verify_E6_dir)
-
-    blast_subject = os.path.join(data_dir, 'blast_E6.fa')
+    blast_subject = os.path.join(data_dir, 'blast_E6_updated.fa')
     blast_out = os.path.join(verify_E6_dir, 'blast_result_E6.tab')
     if os.path.isfile(blast_out):
         os.remove(blast_out)
-
     query_file = os.path.join(verify_E6_dir, 'query.fa')
-
     with open(query_file, 'a') as query:
         query.write('>{}\n'.format(ID))
         query.write(E6_trans)
+    try:
+        num_hits = run_blastp(query_file, blast_subject, blast_out)
+        # print('Got {} hits!'.format(num_hits))
+    except Exception as e:
+        die('EXCEPTION: {}'.format(e))
+    return blast_out
+# ----------------------------------------------------------------------------------------
+def parse_blast_results_verify_e6(virus, args):
+    """
+    This functions parses the blast output from blast_verify_E6() for
+    results that have an evalue less then or equal to 1e-43
 
-    cmd = blastp(
-        query=query_file,
-        subject=blast_subject,
-        evalue=1e-10,
-        outfmt=6,
-        out=blast_out)
-
-    stdout, stderr = cmd()
-
-    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
-        print('No BLAST output "{}" (must have failed)'.format(blast_out))
-
+    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: dictionary, keys are the accession number and the values are the E6
+    sequence of identified sequences that fall at or below the evalue of 1e-43
+    """
+    blast_out = blast_verify_e6(virus,args)
     blast_options = []
     last_resort_blast_options = []
     number_over_eval = 0
     count = 0
     e_values = {}
+    data_dir = args['data_dir']
+
     with open(blast_out) as blast_file:
         blast_result = csv.reader(blast_file, delimiter='\t')
         for row in blast_result:
@@ -484,43 +488,57 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
             number_over_eval = number_over_eval + 1
         else:
             blast_options.append(genome)
-
     if number_over_eval > 0:
         print("Blast results for verifying E6 fall below "
-                        "the set confidence level. "
-                        "The results are still being reported. "
-                        "Number found below the confidence level is:{}."
-                        .format(number_over_eval))
-
+              "the set confidence level. "
+              "The results are still being reported. "
+              "Number found below the confidence level is:{}."
+              .format(number_over_eval))
     if len(blast_options) == 0:
         blast_options = last_resort_blast_options[0:10]
     else:
         blast_options = blast_options[0:10]
     logging.debug("E6 blast options:{}".format(blast_options))
     known_E6 = {}  # Stores a dictionary of the 10 closest blast results
-    csv_database = os.path.join(data_dir, 'all_pave.csv')
+
+    csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
 
     with open(csv_database, 'r') as csvfile:
         read = csv.DictReader(csvfile,
                               ('accession',
-                               'gene',
-                               'positions',
-                               'seq',
-                               'translated seq'))
+                              'gene',
+                              'positions',
+                              'seq',
+                              'translated seq'))
         for row in read:
             if row['accession'] in blast_options and row['gene'] == 'E6':
                 known_E6[row['accession']] = str(row['translated seq'])
-
     logging.debug(known_E6)
+    return known_E6
+
+# ----------------------------------------------------------------------------------------
+def align_verify_e6(virus,args):
+    """
+    This function uses MUSCLE to align the found E6 and the E6s from the blast results
+
+    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: Biopython alignment object
+    """
+
+    E6_trans = str(virus['E6'][3])
+    out_dir = args['out_dir']
+    known_E6 = parse_blast_results_verify_e6(virus,args)
+    verify_E6_dir = os.path.join(out_dir, 'verify_E6')
     unaligned = os.path.join(verify_E6_dir, 'unaligned.fa')
     aligned = os.path.join(verify_E6_dir, 'aligned.fa')
 
     if os.path.isfile(unaligned):
         os.remove(unaligned)
-
     if os.path.isfile(aligned):
         os.remove(aligned)
-
+    logging.debug("E6 before:{}".format(E6_trans))
     with open(unaligned, 'a') as sequence_file:
         sequence_file.write(">{}\n".format('unknown'))
         sequence_file.write("{}\n".format(E6_trans))
@@ -537,11 +555,30 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
         raise Exception('muscle not installed')
 
     alignment = AlignIO.read(aligned, 'fasta')
-    alignment_length = alignment.get_alignment_length()
-
     logging.debug(alignment)
+
+    return alignment
+# ----------------------------------------------------------------------------------------
+def verify_e6(virus,args):
+    """
+    This function use the alignment object from align_verify_e6() to identify if the
+    found E6 is potentially too long at the beginning of the sequence
+
+    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :return: dictionary, key is E6 and the value is a list of start and stop
+    positions, nucleotide seq and translated seq of the updated E6
+    """
+
+    verified_E6 = {}
     dashes = {}
     conserved = {}
+    alignment = align_verify_e6(virus,args)
+    alignment_length = alignment.get_alignment_length()
+    E6_seq = str(virus['E6'][2])
+    E6_whole = virus['E6']
+    ID = virus['accession']
+
     seq_by_id = dict([(rec.id, str(rec.seq)) for rec in alignment])
     for i, rec in enumerate(alignment):
         seq = str(rec.seq)
@@ -557,36 +594,96 @@ def verify_E6(E6_whole, ID, data_dir, out_dir):
         col = alignment[:, i]
         conserved[i] = col.count('M')
 
-    max_num_seqs = max(conserved.values())
-    seqs_at_max = list(filter(lambda t: t[1] == max_num_seqs, conserved.items()))
+    max_num_met = max(conserved.values())
+    seqs_at_max = list(filter(lambda t: t[1] == max_num_met, conserved.items()))
     num_of_dashes = seqs_at_max[0][0]
     prefix = seq_by_id['unknown'][0:num_of_dashes]
+
+
     if len(prefix) * '-' == prefix:
         actual_start = 0
     elif prefix.count('-') == 0:
         #print('E6 = ', seq_by_id['unknown'][num_of_dashes:])
         actual_start = len(prefix)*3
-
     else:
         no_dashes = len(prefix.replace('-', ''))
         actual_start = no_dashes*3
 
     test_seq = E6_seq[actual_start:]
     trans = Seq(str(test_seq)).translate()
+    logging.debug("test trans:{}".format(trans))
     if str(Seq(str(test_seq)).translate())[0] != 'M':
-        actual_start = 0
+        test_trans = str(Seq(str(test_seq[3:])).translate())
+        if test_trans[0] == 'M':
+            actual_start = actual_start + 3
+        else:
+            actual_start = 0
     if len(trans) <= 110:
         actual_start = 0
     if len(trans) >= 184:
         logging.debug("SEQ IS TOO LONG")
     new_seq = E6_seq[actual_start:]
 
-    verified_E6[ID] = [E6_whole[0]+actual_start+1, E6_whole[1], str(new_seq).lower(),
+    verified_E6[ID] = [E6_whole[0]+actual_start, E6_whole[1], str(new_seq).lower(),
         Seq(str(new_seq)).translate()]
 
     return verified_E6
 # ----------------------------------------------------------------------------------------
+def find_urr(virus):
+    """
+    This function locates the URR in the linearized genome based on the postions of the
+    proteins found and the definition of the URR
 
+    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :return: dictionary, where the key is URR and and the value list of start and stop
+    positions and nucleotide seq
+    """
+    start_stop = []
+    urr = {}
+    blasted = {}
+    blasted.update(virus)
+    altered_genome = blasted['genome']
+    del blasted['name']
+    del blasted['accession']
+    del blasted['genome']
+
+
+    altered_genome_len = len(altered_genome)
+    for protein in blasted:
+        if protein == 'L1':
+            start_stop.append((blasted[protein][1]))
+            urr_start = blasted[protein][1]
+        else:
+            start_stop.append(blasted[protein][0])
+
+    start_stop = sorted(start_stop)
+    #print("start_stop:{}".format(start_stop))
+
+    for numbers in start_stop:
+        if numbers == urr_start:
+            if numbers == start_stop[-1]:
+                urr_stop = start_stop[0]
+            else:
+                position = start_stop.index(numbers)
+                urr_stop = start_stop[position + 1]
+    urr_start = int(urr_start)
+    urr_stop = int(urr_stop) -1
+
+    if urr_start == altered_genome_len:
+        urr_start = 1
+    if urr_stop == 0:
+        urr_stop = altered_genome_len
+    if urr_stop > urr_start:
+        urr_found = str(altered_genome[urr_start - 1:urr_stop]).lower()
+        urr['URR'] = [int(urr_start), int(urr_stop), urr_found]
+    else:
+        urr_found = str(altered_genome[urr_start - 1:] + altered_genome[
+        :urr_stop]).lower()
+        urr['URR'] = [int(urr_start), int(genomelen), 1, int(urr_stop), urr_found]
+
+    return urr
+# ----------------------------------------------------------------------------------------
 def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
     """
     Finds the E1 binding site in the genome using the URR
@@ -673,7 +770,6 @@ def find_E1BS(genome, URR, URRstart, ID, data_dir, out_dir):
             sequence = str(
                 genome[int(genomestart - 2):int(genomestop)]).lower()
             E1BS['E1BS'] = [int(genomestart)-1 , int(genomestop), sequence]
-
     return E1BS
 
 
@@ -749,7 +845,7 @@ def find_E2BS(genome, URR, URRstart, ID, data_dir, out_dir):
                     startListGenome.append(genomestart - 1)
 
             E2BS['E2BS'] = startListGenome
-
+            #print("E2BS:{}".format(E2BS))
             return E2BS
 
         except KeyError:
@@ -824,22 +920,15 @@ def find_blastResults_E1E8(E1_whole, ID, out_dir, data_dir):
         query.write('>{}\n'.format(ID))
         query.write(E1_trans)
 
-    cmd = blastp(
-        query=query_file,
-        subject=blast_subject,
-        evalue=1e-10,
-        outfmt=6,
-        out=blast_out)
-
-    stdout, stderr = cmd()
-
-    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
-        print('No BLAST output "{}" (must have failed)'.format(blast_out))
+    try:
+        num_hits = run_blastp(query_file, blast_subject, blast_out)
+        #print('Got {} hits!'.format(num_hits))
+        blastResult = True
+    except Exception:
         blastResult = False
         return blastResult
 
-    else:
-        blastResult = True
+
     return blastResult
 
 
@@ -885,7 +974,7 @@ def find_E1E4(E1_whole, E2_whole, ID, genome, start_E4_nt, blastE1E8_dir,
     for options in blast_options:
         query = options
         known_E1 = {}
-        csv_database = os.path.join(data_dir, 'all_pave.csv')
+        csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
 
         with open(csv_database, 'r') as csvfile:
             read = csv.DictReader(csvfile,
@@ -1044,7 +1133,7 @@ def find_E8E2(E1_whole, E2_whole, ID, genome, startE2_nt, blastE1E8_dir,
     for options in blast_options:
         query = options
         known_E8 = {}
-        csv_database = os.path.join(data_dir, 'all_pave.csv')
+        csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
 
         with open(csv_database, 'r') as csvfile:
             read = csv.DictReader(csvfile,
@@ -1207,19 +1296,13 @@ def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
         query.write('>{}\n'.format(ID))
         query.write(E2_trans)
 
-    cmd = blastp(
-        query=query_file,
-        subject=blast_subject,
-        evalue=1e-10,
-        outfmt=6,
-        out=blast_out)
-
-    stdout, stderr = cmd()
-
-    if not os.path.isfile(blast_out) or not os.path.getsize(blast_out):
-        print('No BLAST output "{}" (must have failed)'.format(blast_out))
+    try:
+        num_hits = run_blastp(query_file, blast_subject, blast_out)
+        #print('Got {} hits!'.format(num_hits))
+    except Exception as e:
         startE2_nt = "No blast results for unkown E2"
         return startE2_nt
+        #die('EXCEPTION: {}'.format(e))
 
     blast_options = []
     with open(blast_out) as blast_file:
@@ -1232,7 +1315,7 @@ def find_splice_acceptor(E2_whole, ID, genome, data_dir, out_dir):
     for options in blast_options:
         query = options
         known_E2 = {}
-        csv_database = os.path.join(data_dir, 'all_pave.csv')
+        csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
 
         with open(csv_database, 'r') as csvfile:
             read = csv.DictReader(csvfile,
@@ -1381,10 +1464,12 @@ def to_pdf(annotations, out_dir):
     """
 
     sequence_length = len(annotations['genome'])
-
-    del annotations['genome']
-    del annotations['E1BS']
-    del annotations['E2BS']
+    try:
+        del annotations['genome']
+        del annotations['E1BS']
+        del annotations['E2BS']
+    except KeyError:
+        pass
 
     features = []
 
@@ -1483,9 +1568,11 @@ def export_to_csv(annotations, out_dir):
         """
 
     csv_out = os.path.join(out_dir, 'puma_results.csv')
-
-    if annotations['E2BS'] == ['No E2BS found']:
-        del annotations['E2BS']
+    try:
+        if annotations['E2BS'] == ['No E2BS found']:
+            del annotations['E2BS']
+    except KeyError:
+        pass
 
     with open(csv_out, 'a') as out:
         out_file = csv.writer(out)
@@ -1583,14 +1670,17 @@ def to_results(dict):
     except KeyError:
         pass
     all = dict['name']
-    short_name = re.search('\(([^)]+)', all).group(1)
+    #short_name = re.search('\(([^)]+)', all).group(1)
+    #dict['name'] = short_name
 
     results_dir = os.path.join('puma_results')
 
-    results = os.path.join(results_dir, 'puma_E6.fa')
+    results = os.path.join(results_dir, 'puma_results_6_19_19.fa')
 
     for protein in dict:
         if protein == 'name':
+            pass
+        elif protein == 'accession':
             pass
         elif protein == 'URR':
             try:
@@ -1613,7 +1703,6 @@ def to_results(dict):
             with open(results, 'a') as out_file:
                 out_file.write(">{}, {} gene\n".format(dict['name'], protein))
                 out_file.write("{}\n".format(dict[protein][4]))
-
         else:
             with open(results, 'a') as out_file:
                 out_file.write(">{}, {} gene\n".format(dict['name'], protein))
@@ -1772,26 +1861,29 @@ def run(args):
     #ID = name.split("|")[0]
     virus['name'] = name  # full_name
     virus['accession'] = ID
+    print(ID)
     altered_genome = linearize_genome(original_genome,args)
     altered_genome_len = len(altered_genome)
     virus['genome'] = str(altered_genome).lower()
-    blasted.update(
-        blast_proteins(altered_genome, args['min_prot_len'], args['e_value'],
-                       args['data_dir'],
-                       args['out_dir']))
+    blasted.update(identify_main_proteins(altered_genome,args))
     virus.update(blasted)
-    E5 = find_e5(virus,ID,args,args['data_dir'],args['out_dir'])
-    #virus.update(E5)
+    #print(blasted)
+    E5 = identify_e5_variants(virus,args)
+    virus.update(E5)
     if 'E6' in virus.keys():
-        verified_E6 = verify_E6(virus['E6'], ID,args['data_dir'],args['out_dir'])
+        verified_E6 = verify_e6(virus,args)
         del virus['E6']
         virus['E6'] = verified_E6[ID]
-    URR = find_urr(blasted, altered_genome)
+        # print("E6 from genome:{}".format(virus['genome'][virus['E6'][0]-1:virus['E6'][1]]))
+        # print("E6 seq:{}".format(virus['E6'][2]))
+    URR = find_urr(virus)
+
     virus.update(URR)
     E2BS = find_E2BS(altered_genome, virus['URR'][-1], virus['URR'][0], ID, args['data_dir'],
                        args['out_dir'])
-    if E2BS:
+    if E2BS['E2BS'] != ["No E2BS found"]:
         virus.update(E2BS)
+
     E1BS = find_E1BS(altered_genome, virus['URR'][-1], virus['URR'][0], ID, args['data_dir'],
                        args['out_dir'])
     if E1BS:
