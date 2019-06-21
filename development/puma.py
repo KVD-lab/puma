@@ -1749,12 +1749,12 @@ def print_genome_info(args, virus):
     print(
         "\nThis is the gene information for {} after making L1 end of Genome:".
         format(virus['accession']))
-    if args['sites'] == ['ALL']:
-        sites = {}
-        sites.update(virus)
-        del sites['name']
-        del sites['genome']
-        del sites['accession']
+    # if args['sites'] == ['ALL']:
+    #     sites = {}
+    #     sites.update(virus)
+    #     del sites['name']
+    #     del sites['genome']
+    #     del sites['accession']
     for name in sites:
         if name == 'E2BS':
             print("\n{} E2 binding sites found:".format(len(virus['E2BS'])))
@@ -1812,7 +1812,7 @@ def validate_args(args):
     Returns a `dict` of arguments
     """
 
-    sites = args['sites'] if 'sites' in args else ['ALL']
+    #sites = args['sites'] if 'sites' in args else ['ALL']
     #sites = args.get('sites') or []
     input_file = args.get('input')
     out_dir = args.get('outdir')
@@ -1826,40 +1826,10 @@ def validate_args(args):
     if not os.path.isdir(blast_e1_e8_dir):
         os.makedirs(blast_e1_e8_dir)
 
-    valid_sites = set(
-        'L1 L2 E1 E2 E4 E5 E5_delta E5_zeta E5_epsilon E6 E7 E9 E10 E2BS '
-        'E1BS '
-        'URR '
-        'ALL'.split())
-
-    if not sites:
-        raise Exception('sites is required')
-
-    if not input_file:
-        raise Exception("input_file is required")
-
-    if not os.path.isfile(input_file):
-        raise Exception('input_file "{}" is not a file.'.format(input_file))
-
-    if not os.path.isdir(data_dir):
-        raise Exception('data_dir "{}" is not a directory.'.format(data_dir))
-
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
-    bad_sites = list(filter(lambda s: s not in valid_sites, sites))
-
-    if bad_sites:
-        raise Exception('Invalid site(s): {}'.format(', '.join(bad_sites)))
-
-    valid_format = set(['fasta', 'genbank'])
-
-    if not input_format in valid_format:
-        msg = 'Invalid format ({}), please choose from {}'
-        raise Exception(msg.format(input_format, ', '.join(valid_format)))
-
     return {
-        'sites': sites,
         'input_file': input_file,
         'out_dir': out_dir,
         'data_dir': data_dir,
@@ -1877,21 +1847,10 @@ def run(args):
     """main"""
     virus = {}
     blasted = {}
-    level = {
-        'debug': logging.DEBUG,
-        'info': logging.INFO,
-        'warning': logging.WARNING,
-        'error': logging.ERROR,
-        'critical': logging.CRITICAL
-    }
-    logging.basicConfig(level=level[args.get('debug_level')],
-                        filename=args.get('log_file'),
-                        filemode='w')
     logging.info('run = {}\n'.format(args))
     warnings.simplefilter('ignore', BiopythonWarning)
     args = validate_args(args)
-    for seq_record in SeqIO.parse("{}".format(args['input_file']),
-                                  args['input_format']):
+    for seq_record in SeqIO.parse(args['input_file'], args['input_format']):
         original_genome = seq_record.seq
         name = seq_record.description.split(",")[0]
         ID = seq_record.name
@@ -1906,17 +1865,16 @@ def run(args):
     blasted.update(identify_main_proteins(altered_genome, args))
     virus.update(blasted)
     #print(blasted)
-    E5 = identify_e5_variants(virus, args)
-    virus.update(E5)
+    virus.update(identify_e5_variants(virus, args))
+
     if 'E6' in virus.keys():
         verified_E6 = verify_e6(virus, args)
         del virus['E6']
         virus['E6'] = verified_E6[ID]
         # print("E6 from genome:{}".format(virus['genome'][virus['E6'][0]-1:virus['E6'][1]]))
         # print("E6 seq:{}".format(virus['E6'][2]))
-    URR = find_urr(virus)
+    virus.update(find_urr(virus))
 
-    virus.update(URR)
     E2BS = find_E2BS(altered_genome, virus['URR'][-1], virus['URR'][0], ID,
                      args['data_dir'], args['out_dir'])
     if E2BS['E2BS'] != ["No E2BS found"]:

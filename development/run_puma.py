@@ -6,6 +6,7 @@ Purpose: Rock the Casbah
 """
 
 import argparse
+import logging
 import re
 import os
 import sys
@@ -39,7 +40,7 @@ def get_args():
     parser.add_argument('-i',
                         '--input',
                         metavar='FILE',
-                        # type=argparse.FileType('r'),
+                        type=argparse.FileType('r'),
                         help=('Path to a FASTA-formatted file that '
                               'contains a Papillomavirus genome.'),
                         required=True)
@@ -47,7 +48,7 @@ def get_args():
     parser.add_argument('-f',
                         '--format',
                         metavar='FORMAT',
-                        choices=['fasta'],
+                        choices=['fasta', 'genbank'],
                         default='fasta',
                         help='File format')
 
@@ -90,17 +91,6 @@ def get_args():
                         help='Minimum protein length')
 
     parser.add_argument(
-        '-s',
-        '--sites',
-        metavar='STR',
-        type=str,
-        default='ALL',
-        help='Comma-separated string of L1 L2 E1 E2 E4 E5 E5_delta '
-        'E5_zeta E5_epsilon E6 E7 '
-        'E9 E10 '
-        'E2BS E1BS URR ALL')
-
-    parser.add_argument(
         '-D',
         '--debug_level',
         metavar='STR',
@@ -116,33 +106,35 @@ def get_args():
                         default='run.log',
                         help='Debug log file')
 
-    #return parser.parse_known_args()
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if not os.path.isdir(args.data_dir):
+        parser.error('--data_dir "{}" is not a directory.'.format(
+            args.data_dir))
+
+    return args
 
 
 # --------------------------------------------------
 def main():
     """main"""
-    args = vars(get_args())  # make into dict
+    args = get_args()
 
-    args['sites'] = re.split(r'\s*,\s*', args['sites'].upper())
-
-    # input_file = args.input
-    # out_dir = args.outdir
-    # data_dir = args.data_dir
-    # input_format = args.format.lower()
-    # min_prot_len = args.min_prot_len
-    # evalue = args.evalue
-    # gff3 = args.gff3
-    # csv = args.csv
-    # blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
-
-    # puma.run(args)
-    try:
-        puma.run(args)
-        print("ALL GOOD")
-    except Exception as e:
-        die('There was a fatal error: {}'.format(e))
+    level = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL
+    }
+    logging.basicConfig(level=level[args.debug_level],
+                        filename=args.log_file,
+                        filemode='w')
+    #try:
+    puma.run(vars(args))
+    print("ALL GOOD")
+    #except Exception as e:
+    #    die('There was a fatal error: {}'.format(e))
 
 
 # --------------------------------------------------
