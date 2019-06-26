@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Author : kyclark
-Date   : 2019-03-29
-Purpose: Rock the Casbah
+puma run file
+
+authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
+University of Arizona, KVD Lab & Hurwitz Lab
+PuMA 0.4 6/25/19
 """
 
 import argparse
@@ -17,22 +19,18 @@ import puma
 def warn(msg):
     """Print a message to STDERR"""
     print(msg, file=sys.stderr)
-
-
 # --------------------------------------------------
 def die(msg='Something bad happened'):
     """warn() and exit with error"""
     warn(msg)
     sys.exit(1)
-
-
 # --------------------------------------------------
 def get_args():
     args = sys.argv
     bin_dir = os.path.dirname(args[0])
 
     parser = argparse.ArgumentParser(
-        description='HPC annotator'
+        description='PV genome annotator'
         'information within a given papillomavirus '
         'genome.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -90,14 +88,13 @@ def get_args():
                         default=25,
                         help='Minimum protein length')
 
-    parser.add_argument(
-        '-D',
-        '--debug_level',
-        metavar='STR',
-        type=str,
-        default='critical',
-        choices=['debug', 'info', 'warning', 'error', 'critical'],
-        help='Debug level')
+    parser.add_argument('-D',
+                        '--debug_level',
+                        metavar='STR',
+                        type=str,
+                        default='critical',
+                        choices=['debug', 'info', 'warning', 'error', 'critical'],
+                        help='Debug level')
 
     parser.add_argument('-L',
                         '--log_file',
@@ -113,8 +110,6 @@ def get_args():
             args.data_dir))
 
     return args
-
-
 # --------------------------------------------------
 def main():
     """main"""
@@ -130,13 +125,8 @@ def main():
     logging.basicConfig(level=level[args.debug_level],
                         filename=args.log_file,
                         filemode='w')
-    #try:
     puma.run(vars(args))
-    print("ALL GOOD")
-    #except Exception as e:
-    #    die('There was a fatal error: {}'.format(e))
-
-
+    print("PuMA execution complete. Check output results.")
 # --------------------------------------------------
 if __name__ == '__main__':
     main()
