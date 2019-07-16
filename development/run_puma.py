@@ -4,7 +4,7 @@ puma run file
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 0.4 6/25/19
+PuMA 0.4 7/12/19 removed output options arguments
 """
 
 import argparse
@@ -58,21 +58,11 @@ def get_args():
                         help='Directory that has all database files for use')
 
     parser.add_argument('-o',
-                        '--outdir',
+                        '--out_dir',
                         metavar='DIR',
                         type=str,
-                        default=os.path.join(bin_dir, 'puma-out'),
+                        default=os.path.join(bin_dir, 'puma_out'),
                         help='Output directory')
-
-    parser.add_argument('-g',
-                        '--gff3',
-                        action='store_true',
-                        help='Outputs information in gff3 format')
-
-    parser.add_argument('-c',
-                        '--csv',
-                        action='store_true',
-                        help='Outputs information in csv format')
 
     parser.add_argument('-e',
                         '--evalue',
@@ -100,7 +90,7 @@ def get_args():
                         '--log_file',
                         metavar='FILE',
                         type=str,
-                        default='run.log',
+                        default='puma_execution.log',
                         help='Debug log file')
 
     args = parser.parse_args()
@@ -114,7 +104,6 @@ def get_args():
 def main():
     """main"""
     args = get_args()
-
     level = {
         'debug': logging.DEBUG,
         'info': logging.INFO,
@@ -122,11 +111,19 @@ def main():
         'error': logging.ERROR,
         'critical': logging.CRITICAL
     }
-    logging.basicConfig(level=level[args.debug_level],
-                        filename=args.log_file,
+    args = vars(args)
+    for_user_dir = os.path.join(args['out_dir'], 'for_user')
+    if not os.path.isdir(for_user_dir):
+        os.makedirs(for_user_dir)
+    log_file = os.path.join(for_user_dir, args['log_file'])
+    logging.basicConfig(level=level[args['debug_level']],
+                        filename=log_file,
                         filemode='w')
-    puma.run(vars(args))
-    print("PuMA execution complete. Check output results.")
+
+    puma.run(args)
+    print("PuMA execution complete. Check output files in {}. Also check "
+          "puma_execution.log for potential notes about execution.".format(
+        for_user_dir))
 # --------------------------------------------------
 if __name__ == '__main__':
     main()

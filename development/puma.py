@@ -3,10 +3,24 @@ puma library
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 0.4 Spliced protein changes 6/25/19
+PuMA 0.4 New graphics 7/11/19
 """
 
-from distutils.spawn import find_executable
+import os
+import glob
+import re
+import csv
+import time
+import operator
+import argparse
+import sys
+import warnings
+import random
+import itertools
+import shutil
+import logging
+import numpy as np
+import pandas as pd
 from Bio import SeqIO, GenBank, AlignIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -14,18 +28,14 @@ from Bio.Alphabet import IUPAC
 from Bio.Blast.Applications import NcbiblastpCommandline as blastp
 from Bio.Align.Applications import MuscleCommandline
 from Bio.Align.Applications import MafftCommandline
-import os, glob, re, csv, time, operator, argparse, sys
-import warnings
 from Bio import BiopythonWarning
-import itertools
-import shutil
-import logging
-from dna_features_viewer import GraphicFeature, GraphicRecord
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from subprocess import getstatusoutput
-import numpy as np
-import pandas as pd
+from distutils.spawn import find_executable
 from pprint import pprint as pp
 from dire import die
+
 
 
 # ----------------------------------------------------------------------------------------
@@ -48,13 +58,13 @@ def make_l1_end(l1Result, original_genome, original_genome_length):
         new_genome = original_genome + sequence  #Still has extra at the beginning
         new_start = len(sequence)
         new_genome = new_genome[new_start + 1:]
-    elif start > original_genome_length and stop > original_genome_length:  #No wrap around
+    elif start > original_genome_length and stop > original_genome_length: #No wrap around
         stop = stop - original_genome_length
         sequence = original_genome[stop + 1:]
         new_genome = sequence + original_genome  # Still has extra at the beginning
         new_stop = stop + len(sequence)
         new_genome = new_genome[:new_stop + 1]
-    elif start < original_genome_length and stop < original_genome_length:  #No wrap around
+    elif start < original_genome_length and stop < original_genome_length: #No wrap around
         sequence = original_genome[stop:]
         new_stop = stop + len(sequence)
         new_genome = sequence + original_genome  # Still has extra at the beginning
@@ -80,8 +90,8 @@ def linearize_genome(original_genome, args):
     extended_genome = original_genome + original_genome[:2000]
 
     if str(extended_genome).upper().count("N") >= 5:
-        logging.warning("Number of n nucleotides found:{}".format(
-            str(extended_genome).upper().count("N")))
+        logging.warning("Number of n nucleotides found:{}"
+                        .format(str(extended_genome).upper().count("N")))
         raise Exception("Genome has too many n nucleotides to be annotated")
 
     proteins = identify_main_proteins(extended_genome, args)
@@ -189,11 +199,10 @@ def blast_main_orfs(genome, args):
     second being the ORFs found
     """
     orfs = trans_orf(genome, args['min_prot_len'])
-
     if not orfs:
         raise Exception('No ORFs, must stop.')
 
-    orfs_fa = os.path.join(args['out_dir'], 'orfs.fa')
+    orfs_fa = os.path.join(args['program_files_dir'], 'orfs.fa')
     orfs_fh = open(orfs_fa, 'wt')
 
     for orf in orfs:
@@ -201,7 +210,7 @@ def blast_main_orfs(genome, args):
     orfs_fh.close()
 
     blast_sub = os.path.join(args['data_dir'], 'main_blast.fa')
-    blast_out = os.path.join(args['out_dir'], 'blast_results_main.tab')
+    blast_out = os.path.join(args['program_files_dir'], 'blast_results_main.tab')
 
     if os.path.isfile(blast_out):
         os.remove(blast_out)
@@ -210,6 +219,7 @@ def blast_main_orfs(genome, args):
         #print('Got {} hits!'.format(num_hits))
     except Exception as e:
         die('EXCEPTION: {}'.format(e))
+
 
     return blast_out, orfs_fa
 
@@ -254,56 +264,59 @@ def identify_main_proteins(genome, args):
     for seq in protein_seq:
         for start in protein_start:
             if seq == start:
-                if seq == 'L1':
-                    found_proteins.update(
-                        identify_l1(genome, protein_seq[seq],
-                                    protein_start[start], found_proteins))
-                else:
-                    try:
-                        M = re.search('M', protein_seq[seq])
-                        real_start = protein_start[start] + M.start(
-                        ) + M.start() + M.start()
-                        end = protein_start[start] + (
-                            (len(protein_seq[seq]) + 1) * 3)
-                        sequence = str(
-                            genome[int(real_start):int(end)]).lower()
-                        translated = Seq(sequence).translate()
+                # if seq == 'L1':
+                #     found_proteins.update(
+                #         identify_l1(genome, protein_seq[seq],
+                #                     protein_start[start], found_proteins))
+                # else:
+                try:
+                    M = re.search('M', protein_seq[seq])
+                    real_start = protein_start[start] + M.start(
+                    ) + M.start() + M.start()
+                    end = protein_start[start] + (
+                        (len(protein_seq[seq]) + 1) * 3)
+                    sequence = str(
+                        genome[int(real_start):int(end)]).lower()
+                    translated = Seq(sequence).translate()
+                    if len(translated) < 25:
+                        logging.info("{} is of length {} and therefore is too short to be "
+                                  "considered viable".format(seq, len(translated)))
+                    else:
                         found_proteins[seq] = [
                             int(real_start) + 1,
                             int(end), sequence, translated
                         ]
-                    except AttributeError:
-                        pass
+                except AttributeError:
+                    pass
+    #pp(found_proteins['L1'])
+    found_proteins = verify_l1(found_proteins)
 
     return found_proteins
 
 
 # ----------------------------------------------------------------------------------------
-def identify_l1(genome, sequence, start, l2):
+def verify_l1(virus):
     """
-    This function identifies the L1 from the blast results and ORFs
+    This function double checks the start position of L1, uses the motif MxxWxxxxxxYLPP
+    to search
 
-    :param genome: linearized based on L1 genome
-    :param sequence: ORF identfied as having a potential L1
-    :param start: ORF start position in genome
-    :param l2: dictionary with the annotated proteins, used for L2
-    :return: dictionary with the key being L1 and the value is a list of start and stop
-    positions, nucleotide seq and translated seq
+    :param virus: dictionary that has the main ORFs
+    :return: dictionary that has the main ORFs and a double checked L1
     """
     found_proteins = {}
-    l2 = l2['L2']
-    print("L2 in identify_l1:{}".format(l2))
-    M = re.search('M', sequence)
-    real_start = start + M.start() + M.start() + M.start()
-    end = start + ((len(sequence) + 1) * 3)
-    found_proteins['L1'] = []
-    L1_pre = genome[(start + 3 * M.start()):int(end)]
+    found_proteins.update(virus)
+    L1_pre = virus['L1'][2]
+    real_start = virus['L1'][0] - 1
+    end = virus['L1'][1]
+    L2 = virus['L2']
     splice = '(C|T)(C|T)(A|C|G|T)(C|T)AG(A)TG'
     spliced = re.search(splice, str(L1_pre).upper())
     if spliced:
         start_L1 = int(spliced.start()) + 6
+        start_L1_nt = start_L1 + real_start
+        late_gap = start_L1_nt - L2[1]
         if start_L1 % 3 == 0:
-            if start_L1 > 600:
+            if late_gap > 50:
                 L1_post = L1_pre
                 found_proteins['L1'] = [
                     int(start_L1),
@@ -312,6 +325,7 @@ def identify_l1(genome, sequence, start, l2):
                     Seq(str(L1_post)).translate()
                 ]
             else:
+                del found_proteins['L1']
                 L1_post = L1_pre[start_L1:]
                 found_proteins['L1'] = [
                     int(real_start) + 1 + int(start_L1),
@@ -327,14 +341,6 @@ def identify_l1(genome, sequence, start, l2):
                 str(L1_post).lower(),
                 Seq(str(L1_post)).translate()
             ]
-    else:
-        L1_post = L1_pre
-        found_proteins['L1'] = [
-            int(real_start) + 1,
-            int(end),
-            str(L1_post).lower(),
-            Seq(str(L1_post)).translate()
-        ]
     return found_proteins
 
 
@@ -344,14 +350,14 @@ def blast_e5_variants(virus, args):
     This function uses a sequence 200 nucleotides at the end of E2 to 200 nucleotides
     into L2 find ORFs to be blasted to potentially locate E5 variants
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: a list of two file paths, the first element being the blast output and the
     second being the ORFs found
     """
     data_dir = args['data_dir']
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     e5_sequence = virus['genome'][virus['E2'][1] - 200:virus['L2'][0] + 200]
     orfs = trans_orf(Seq(e5_sequence), 5)
     orfs_fa = os.path.join(out_dir, 'orfs_E5.fa')
@@ -378,14 +384,14 @@ def identify_e5_variants(virus, args):
     This function searches the linearized genome for possible E5_ALPHA, BETA, DELTA,
     EPSILON, GAMA, ZETA
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: dictionary, either empty of with found E5 variants
     """
     protein_seq = {}
     found_proteins = {}
-    blast_out, orfs_fa, e5_sequence = blast_e5_variants(virus, args)
+    blast_out , orfs_fa, e5_sequence = blast_e5_variants(virus,args)
     hdrs = ('qseqid sseqid pident length mismatch gapopen qstart '
             'qend sstart send evalue bitscore').split()
     df = pd.read_csv(blast_out, sep='\t', names=hdrs)
@@ -437,20 +443,20 @@ def blast_verify_e6(virus, args):
     """
     This function blasts the found E6 against all E6s in PaVE
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: file path to blast output
     """
     E6_trans = str(virus['E6'][3])
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     data_dir = args['data_dir']
     verify_E6_dir = os.path.join(out_dir, 'verify_E6')
     ID = virus['accession']
 
     if not os.path.isdir(verify_E6_dir):
         os.makedirs(verify_E6_dir)
-    blast_subject = os.path.join(data_dir, 'blast_E6_updated.fa')
+    blast_subject = os.path.join(data_dir, 'blast_E6_manual_old.fa') # blast_E6_updated.fa
     blast_out = os.path.join(verify_E6_dir, 'blast_result_E6.tab')
     if os.path.isfile(blast_out):
         os.remove(blast_out)
@@ -472,7 +478,7 @@ def parse_blast_results_verify_e6(virus, args):
     This functions parses the blast output from blast_verify_E6() for
     results that have an evalue less then or equal to 1e-43
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: dictionary, keys are the accession number and the values are the E6
@@ -500,16 +506,13 @@ def parse_blast_results_verify_e6(virus, args):
         else:
             blast_options.append(genome)
     if number_over_eval > 0:
-        print("Blast results for verifying E6 fall below "
+        logging.info("Blast results for verifying E6 fall below "
               "the set confidence level. "
-              "The results are still being reported. "
-              "Number found below the confidence level is:{}.".format(
-                  number_over_eval))
+              "Number found below the confidence level is:{}.".format(number_over_eval))
     if len(blast_options) == 0:
         blast_options = last_resort_blast_options[0:10]
     else:
         blast_options = blast_options[0:10]
-    logging.debug("E6 blast options:{}".format(blast_options))
     known_E6 = {}  # Stores a dictionary of the 10 closest blast results
 
     csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
@@ -523,7 +526,6 @@ def parse_blast_results_verify_e6(virus, args):
         for row in read:
             if row['accession'] in blast_options and row['gene'] == 'E6':
                 known_E6[row['accession']] = str(row['translated seq'])
-    logging.debug(known_E6)
     return known_E6
 
 
@@ -532,14 +534,13 @@ def align_verify_e6(virus, args):
     """
     This function uses MUSCLE to align the found E6 and the E6s from the blast results
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: Biopython alignment object
     """
-
     E6_trans = str(virus['E6'][3])
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     known_E6 = parse_blast_results_verify_e6(virus, args)
     verify_E6_dir = os.path.join(out_dir, 'verify_E6')
     unaligned = os.path.join(verify_E6_dir, 'unaligned.fa')
@@ -549,7 +550,6 @@ def align_verify_e6(virus, args):
         os.remove(unaligned)
     if os.path.isfile(aligned):
         os.remove(aligned)
-    logging.debug("E6 before:{}".format(E6_trans))
     with open(unaligned, 'a') as sequence_file:
         sequence_file.write(">{}\n".format('unknown'))
         sequence_file.write("{}\n".format(E6_trans))
@@ -566,18 +566,14 @@ def align_verify_e6(virus, args):
         raise Exception('muscle not installed')
 
     alignment = AlignIO.read(aligned, 'fasta')
-    logging.debug(alignment)
-
     return alignment
-
-
 # ----------------------------------------------------------------------------------------
 def verify_e6(virus, args):
     """
     This function use the alignment object from align_verify_e6() to identify if the
     found E6 is potentially too long at the beginning of the sequence
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: dictionary, key is E6 and the value is a list of start and stop
@@ -625,7 +621,6 @@ def verify_e6(virus, args):
 
     test_seq = E6_seq[actual_start:]
     trans = Seq(str(test_seq)).translate()
-    logging.debug("test trans:{}".format(trans))
     if str(Seq(str(test_seq)).translate())[0] != 'M':
         test_trans = str(Seq(str(test_seq[3:])).translate())
         if test_trans[0] == 'M':
@@ -635,7 +630,7 @@ def verify_e6(virus, args):
     if len(trans) <= 110:
         actual_start = 0
     if len(trans) >= 184:
-        logging.debug("SEQ IS TOO LONG")
+        logging.info("E6 sequence found is longer than average")
     new_seq = E6_seq[actual_start:]
 
     verified_E6[ID] = [
@@ -653,7 +648,7 @@ def find_urr(virus):
     This function locates the URR in the linearized genome based on the postions of the
     proteins found and the definition of the URR
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :return: dictionary, where the key is URR and and the value is list of start and stop
     positions and nucleotide seq
@@ -712,14 +707,14 @@ def fimo_e1bs(virus, args):
     """
     This function executes fimo on the URR for the E1 Binding Sites
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: TSV fimo output file
     """
     URR = virus['URR'][-1]
     ID = virus['accession']
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     data_dir = args['data_dir']
 
     tmp = os.path.join(out_dir, "puma_urr.fa")
@@ -736,8 +731,8 @@ def fimo_e1bs(virus, args):
     if not os.path.isdir(fimo_dir):
         os.makedirs(fimo_dir)
 
-    background = os.path.join(data_dir, 'background_model_E1BS.txt')
-    motif = os.path.join(data_dir, 'E1BS_motif.txt')
+    background = os.path.join(data_dir, 'background_model_E1BS_old.txt')
+    motif = os.path.join(data_dir, 'E1BS_motif_old.txt')
 
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
     fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
@@ -756,15 +751,13 @@ def fimo_e1bs(virus, args):
         return
 
     return fimo_out
-
-
 # ----------------------------------------------------------------------------------------
 def find_e1bs(virus, args):
     """
     This function uses the fimo output from fimo_e1bs() along with the URR to find the
     E1 Binding Sites
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: dictionary, where the key is E1BS and and the value is list of start and
@@ -795,10 +788,10 @@ def find_e1bs(virus, args):
 
     if genome_stop > genome_length:
         genome_stop = genome_stop - genome_length
-        sequence = str(genome[int(genome_start) - 2:] +
+        sequence = str(genome[int(genome_start) - 1:] +
                        genome[:genome_stop]).lower()
         E1BS['E1BS'] = [
-            int(genome_start) - 1,
+            int(genome_start)-1,
             int(genome_length), 1,
             int(genome_stop), sequence
         ]
@@ -807,12 +800,12 @@ def find_e1bs(virus, args):
         if genome_start == 1:
             sequence = str(genome[-1]).lower() + str(
                 genome[int(genome_start - 1):int(genome_stop)]).lower()
-            E1BS['E1BS'] = [int(genome_start), int(genome_stop), sequence]
+            E1BS['E1BS'] = [int(genome_start)-1, int(genome_stop), sequence]
 
         else:
             sequence = str(genome[int(genome_start -
-                                      2):int(genome_stop)]).lower()
-            E1BS['E1BS'] = [int(genome_start) - 1, int(genome_stop), sequence]
+                                      1):int(genome_stop)]).lower()
+            E1BS['E1BS'] = [int(genome_start)-1, int(genome_stop), sequence]
     return E1BS
 
 
@@ -821,16 +814,15 @@ def fimo_e2bs(virus, args):
     """
     This function executes fimo on the URR for the E2 Binding Sites
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: TSV fimo output file
     """
-
     URR = virus['URR'][-1]
     ID = virus['accession']
     data_dir = args['data_dir']
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     tmp = os.path.join(out_dir, "puma_urr.fa")
     with open(tmp, "w") as tempfile:
         tempfile.write('>URR for {}\n'.format(ID))
@@ -844,7 +836,7 @@ def fimo_e2bs(virus, args):
     if not os.path.isdir(fimo_dir):
         os.makedirs(fimo_dir)
 
-    motif = os.path.join(data_dir, 'E2BS_motif.txt')
+    motif = os.path.join(data_dir, 'E2BS_motif_old.txt')
 
     fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
 
@@ -864,16 +856,15 @@ def fimo_e2bs(virus, args):
         logging.critical('Failed to create fimo out "{}"'.format(fimo_out))
         return
 
+
     return fimo_out
-
-
 # ----------------------------------------------------------------------------------------
 def find_e2bs(virus, args):
     """
     This function uses the fimo output from fimo_e2bs() along with the URR to find the
     E2 Binding Sites
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: dictionary, where the key is E2BS and and the value is list of start
@@ -915,23 +906,20 @@ def find_e2bs(virus, args):
 
             E2BS['E2BS'] = ["No E2BS found"]
             return E2BS
-
-
 # ----------------------------------------------------------------------------------------
 def blast_splice_acceptor(virus, args):
     """
     This function blasts the query E2 agaisnt all E2s in PaVE to start the process of
     finding the splice acceptor postion for E1^E4 and E8^E2
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: file path to blast output
     """
-
     E2_trans = str(virus['E2'][-1])
     ID = virus['accession']
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     data_dir = args['data_dir']
 
     splice_acceptor_dir = os.path.join(out_dir, 'splice_acceptor')
@@ -966,7 +954,7 @@ def locate_known_splice_acceptor(virus, args):
     This function uses the blast results from blast_splice_acceptor() to find the
     splice acceptor information in the E2 that was the closest blast match
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: If the splice acceptor information is found then the known splice start
@@ -976,14 +964,12 @@ def locate_known_splice_acceptor(virus, args):
     """
     blast_out = blast_splice_acceptor(virus, args)
     data_dir = args['data_dir']
-    query = []
+    query = ''
     with open(blast_out) as blast_file:
         blast_result = csv.reader(blast_file, delimiter='\t')
         for row in blast_result:
-            query.append(row[1])
+            query = row[1]
             break
-
-    # blast_options = blast_options[0:1]
 
     splice_start_known = -1
     known_E2 = {}
@@ -1019,14 +1005,14 @@ def align_splice_acceptor(virus, args):
     """
     This function aligns the query and the closest E2 using MUSCLE
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: Biopython alignment object
     """
     _, known_E2 = locate_known_splice_acceptor(virus, args)
     E2_seq = virus['E2'][2]
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     ID = virus['accession']
     splice_acceptor_dir = os.path.join(out_dir, 'splice_acceptor')
 
@@ -1051,8 +1037,6 @@ def align_splice_acceptor(virus, args):
     stdout, stderr = cline()
 
     return aligned
-
-
 # ----------------------------------------------------------------------------------------
 def find_splice_acceptor(virus, args):
     """
@@ -1060,19 +1044,16 @@ def find_splice_acceptor(virus, args):
     locate_known_splice_acceptor() and blast_splice_acceptor() to locate the splice
     acceptor start position for E1^E4 and E8^E2
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: the splice acceptor genome start position for E1^E4 and E8^E2
     """
-    aligned = align_splice_acceptor(virus, args)
     splice_start_known, _ = locate_known_splice_acceptor(virus, args)
-
     if splice_start_known < 0:
         return -1
-
+    aligned = align_splice_acceptor(virus, args)
     genome = str(virus['genome'])
-
     aligned_starts = []
     align_seq = []
     for aln in AlignIO.read(aligned, 'fasta'):
@@ -1095,28 +1076,25 @@ def find_splice_acceptor(virus, args):
     aligned_splice_start = aligned_starts[-1]
 
     search_seq = unknown_seq[aligned_splice_start:aligned_splice_start +
-                             50].replace('-', '')
+                                                  50].replace('-', '')
 
     startE2_nt = re.search(search_seq, str(genome).lower()).start()
 
     return startE2_nt
-
-
 # ----------------------------------------------------------------------------------------
-def blast_spliced_e1_e8(virus, args):
+def blast_spliced_e1_e8(virus,args):
     """
     This function blasts the query E1 against all E1s in PaVE to start the
     process of finding the splice donor position for E1^E4 and E8^E2
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: file path to blast output
     """
-
     E1_trans = str(virus['E1'][-1])
     ID = virus['accession']
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     data_dir = args['data_dir']
 
     blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
@@ -1141,15 +1119,13 @@ def blast_spliced_e1_e8(virus, args):
     except Exception as e:
         die('EXCEPTION: {}'.format(e))
     return blast_out
-
-
 # ----------------------------------------------------------------------------------------
 def locate_known_e1_splice_donor(virus, args):
     """
     This function uses the blast results from blast_spliced_e1_e8() to find the
     splice donor information in the E1 that was the closest blast match
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: The known E1 splice donor position and a dictionary with the known E1
@@ -1190,20 +1166,18 @@ def locate_known_e1_splice_donor(virus, args):
         E1_stop_known = (E1_stop_genome - known_E1_stop)
 
     return E1_stop_known, known_E1
-
-
 # ----------------------------------------------------------------------------------------
 def align_splice_donor_e1(virus, args):
     """
     This function aligns the query E1 and the closest E1 using MUSCLE
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param args: command line arguments for data_dir etc
     :return: Biopython alignment object
     """
-    _, known_E1 = locate_known_e1_splice_donor(virus, args)
-    out_dir = args['out_dir']
+    _, known_E1 = locate_known_e1_splice_donor(virus,args)
+    out_dir = args['program_files_dir']
     ID = virus['accession']
     E1_seq = str(virus['E1'][2])
     blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
@@ -1228,8 +1202,6 @@ def align_splice_donor_e1(virus, args):
     stdout, stderr = cline()
 
     return aligned
-
-
 # ----------------------------------------------------------------------------------------
 def find_e4(E2, genome, position):
     """
@@ -1265,16 +1237,14 @@ def find_e4(E2, genome, position):
     translated = Seq(sequence).translate()
     E4['E4'] = [int(E4_nt_start) + 1, int(E4_nt_end) + 1]
     return E4
-
-
 # ----------------------------------------------------------------------------------------
-def find_e1_e4(virus, start_E4_nt, args):
+def find_e1_e4(virus,start_E4_nt, args):
     """
     This function uses the output from blast_spliced_e1_e8(),
     locate_known_e1_splice_donor(), align_splice_donor_e1(), find_e4() to locate the
     splice donor site for E1^E4
 
-    :param virus: Dictionary that has all found proteins so far and linearized based on L1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
     :param start_E4_nt: splice acceptor position
     :param args: command line arguments for data_dir etc
@@ -1313,13 +1283,10 @@ def find_e1_e4(virus, start_E4_nt, args):
     whole_E4 = find_e4(virus['E2'][2], genome, -1)
     #For when it may not always be the longest nonexistent E4, checks to make sure that
     #  the splice acceptor site is within the found E4
-    # logging.debug("E4 Start:{}".format(whole_E4['E4'][0]))
-    # logging.debug("E4 Stop:{}".format(whole_E4['E4'][1]))
-    # logging.debug("Splice Site Staart:{}".format(start_E4_nt))
     position = -1
     while ((start_E4_nt < whole_E4['E4'][0])
            and (start_E4_nt < whole_E4['E4'][1])):
-        whole_E4 = find_E4(E2_seq, genome, position)
+        whole_E4 = find_e4(virus['E2'][2], genome, position)
         position = position - 1
 
     stopE4_nt = whole_E4['E4'][1] - 1
@@ -1327,19 +1294,26 @@ def find_e1_e4(virus, start_E4_nt, args):
                     genome[start_E4_nt:stopE4_nt])
     E1_E4_trans = Seq(E1_E4_seq).translate()
 
+
     E1_E4['E1^E4'] = [
         startE1_nt, stopE1_nt, start_E4_nt + 1, stopE4_nt, E1_E4_seq,
         E1_E4_trans
     ]
     return E1_E4
-
-
 # ----------------------------------------------------------------------------------------
 def locate_known_e8_splice_donor(virus, args):
+    """
+    This function uses the blast results to find the E8 stops positions of the closest
+    match
+
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: known E8 stop position, known E1 sequence
+    """
     blast_out = blast_spliced_e1_e8(virus, args)
     data_dir = args['data_dir']
     blast_options = []
-
     with open(blast_out) as blast_file:
         blast_result = csv.reader(blast_file, delimiter='\t')
         for row in blast_result:
@@ -1351,7 +1325,6 @@ def locate_known_e8_splice_donor(virus, args):
         query = options
         known_E8 = {}
         csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
-
         with open(csv_database, 'r') as csvfile:
             read = csv.DictReader(csvfile,
                                   ('accession', 'gene', 'positions', 'seq'))
@@ -1361,20 +1334,24 @@ def locate_known_e8_splice_donor(virus, args):
                 if row["accession"] == query and row["gene"] == 'E1':
                     known_E8[query] = str(row['seq']).lower()
                     known_E8_stop = str(row["positions"])
-
         E8_stop_genome = E8_positions.split('+')[0]
         E8_stop_genome = E8_stop_genome.split('(')[1]
         E8_stop_genome = int(str(E8_stop_genome).split('..')[1])
         known_E8_stop = int(known_E8_stop.split('..')[0])
         E8_stop_known = (E8_stop_genome - known_E8_stop)
-
     return E8_stop_known, known_E8
-
-
 # ----------------------------------------------------------------------------------------
 def align_splice_donor_e8(virus, args):
+    """
+    This function aligns the unknown E1 and closest E1 blast match
+
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: MUSCLE alignment of the unknown E1 and closest E1 blast match
+    """
     _, known_E8 = locate_known_e8_splice_donor(virus, args)
-    out_dir = args['out_dir']
+    out_dir = args['program_files_dir']
     ID = virus['accession']
     blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
     E1_seq = str(virus['E1'][2])
@@ -1382,10 +1359,8 @@ def align_splice_donor_e8(virus, args):
     aligned = os.path.join(blastE1E8_dir, 'aligned.fa')
     if os.path.isfile(unaligned):
         os.remove(unaligned)
-
     if os.path.isfile(aligned):
         os.remove(aligned)
-
     for key in known_E8:
         with open(unaligned, 'a') as sequence_file:
             sequence_file.write(">{}\n".format(ID))
@@ -1394,14 +1369,17 @@ def align_splice_donor_e8(virus, args):
             sequence_file.write("{}\n".format(known_E8[key]))
 
     cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
-
     stdout, stderr = cline()
-
     return aligned
-
-
 # ----------------------------------------------------------------------------------------
 def find_e8(virus, args):
+    """
+    This function finds the E8 portion of E8^E2 with in the +1 frame of E1
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param args: command line arguments for data_dir etc
+    :return: start and stop positions of the found E8 portion of E8^E2
+    """
 
     aligned = align_splice_donor_e8(virus, args)
     E8_stop_known, _ = locate_known_e8_splice_donor(virus, args)
@@ -1418,7 +1396,6 @@ def find_e8(virus, args):
         align_seq.append(aln.seq)
     unknown_seq = str(align_seq[0]).lower()
     known_seq = str(align_seq[1]).lower()
-
     for position in known_seq:
         aligned_E8_stop = aligned_E8_stop + 1
         # print(aligned_E8_stop)
@@ -1426,21 +1403,14 @@ def find_e8(virus, args):
             j = j + 1
             if j == E8_stop_known:
                 break
-
     E8_stop.append(aligned_E8_stop)
-
     aligned_E8_stop = E8_stop[-1]
-    logging.debug("Aligned_E8_Stops:{}".format(aligned_E8_stop))
     search_seq = unknown_seq[aligned_E8_stop:aligned_E8_stop + 50].replace(
         '-', '')
-
     stopE8_nt = (re.search(search_seq, str(genome).lower()).start()) + 1
-
     stopE8 = (stopE8_nt - E1_whole[0]) - 1
     tempStart = stopE8 - 70
-
     search_seq = E1_seq[tempStart:stopE8]
-
     for match in re.finditer('atg', search_seq):
         startE8List.append(match.start() + tempStart)
     for i in range(0, len(startE8List)):
@@ -1451,72 +1421,80 @@ def find_e8(virus, args):
                 del startE8List[i]
         except IndexError:
             break
-    # logging.debug("StartlistE8:{}".format(startE8List))
-    for i in range(0, len(startE8List)):
-        try:
-            testStart = startE8List[i] + E1_whole[0]
-            check_seq = Seq(genome[testStart - 1:stopE8_nt]).translate()
-            if "*" in check_seq:
-                del startE8List[i]
-            elif check_seq.startswith(startMotif):
-                startE8_nt = startE8List[i] + E1_whole[0]
-        except IndexError:
-            break
-    # logging.debug("StartlistE8:{}".format(startE8List))
-    if "*" in check_seq:
-        startE8_nt = startE8List[0] + E1_whole[0]
-    elif check_seq.startswith(startMotif):
-        pass
+    if len(startE8List) >= 1:
+        for i in range(0, len(startE8List)):
+            try:
+                testStart = startE8List[i] + E1_whole[0]
+                check_seq = Seq(genome[testStart - 1:stopE8_nt]).translate()
+                if "*" in check_seq:
+                    del startE8List[i]
+                elif check_seq.startswith(startMotif):
+                    startE8_nt = startE8List[i] + E1_whole[0]
+            except IndexError:
+                break
+        if "*" in check_seq:
+            startE8_nt = startE8List[0] + E1_whole[0]
+        elif check_seq.startswith(startMotif):
+            pass
+        else:
+            startE8_nt = startE8List[0] + E1_whole[0]
     else:
         startE8_nt = startE8List[0] + E1_whole[0]
-
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
-
     return startE8_nt, stopE8_nt
-
-
 # ----------------------------------------------------------------------------------------
 def find_e8_e2(virus, startE2_nt, args):
+    """
+    This function uses all the return values from the above E8^E2 functions to create a
+    dictionary with the E8^E2 protein info
+
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param startE2_nt: nucleotide start position of the splice acceptor site
+    :param args: command line arguments for data_dir etc
+    :return: dictionary containing the start and stop positions, sequence and
+    translated sequence of the E8^E2
+    """
 
     E8_E2 = {}
     genome = virus['genome']
     stopE2_nt = virus['E2'][1]
-    startE8_nt, stopE8_nt = find_e8(virus, args)
-    E8_E2_seq = Seq(genome[startE8_nt - 1:stopE8_nt] +
-                    genome[startE2_nt:stopE2_nt])
+    startE8_nt, stopE8_nt = find_e8(virus,args)
+    E8_E2_seq = Seq(genome[startE8_nt - 1:stopE8_nt] + genome[startE2_nt:stopE2_nt])
     E8_E2_trans = E8_E2_seq.translate()
     E8_E2['E8^E2'] = [
         startE8_nt, stopE8_nt, startE2_nt + 1, stopE2_nt, E8_E2_seq,
         E8_E2_trans
     ]
     return E8_E2
-
-
 # ----------------------------------------------------------------------------------------
-def to_gff3(dict, genomelen, out_dir):
+def to_gff3(virus, for_user_dir):
     """
-    Outputs gff3 format
+    This function creates a General Feature Format file
 
-    :param dict:
-    :param genomelen:
-    :param out_dir:
-    :return:
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param for_user_dir: path to the for_user dictionary that is in the puma_out
+    directory
+    :return: nothing
     """
+    dict = {}
+    dict.update(virus)
     del dict['URR']
-
     name = dict['accession']
     dict['name'] = name
-    gff3_out = os.path.join(out_dir, '{}.gff3'.format(dict['name']))
-
+    gff3_out = os.path.join(for_user_dir, '{}.gff3'.format(dict['name']))
+    genomelen = len(str(virus['genome']))
     with open(gff3_out, 'a') as out_file:
         out_file.write("##gff-version 3\n")
         out_file.write("##sequence-region {} 1 {}\n".format(
             dict['name'], genomelen))
 
     for protein in dict:
-        if protein == 'name' or protein == 'accession':
+        if protein == 'name' or protein == 'accession' or protein == 'genome':
             pass
         elif "^" in protein:
+
             frameNumber = dict[protein][0] % 3
             if frameNumber == 1:
                 frame = 1
@@ -1549,189 +1527,240 @@ def to_gff3(dict, genomelen, out_dir):
                                                        protein,
                                                        dict[protein][0],
                                                        dict[protein][1]))
+    return
+#-----------------------------------------------------------------------------------------
+def to_graphic(virus, for_user_dir):
+    """
+    This functions creates a graph of the found annotations within the genome
+
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param for_user_dir: path to the for_user dictionary that is in the puma_out
+    directory
+    :return: nothing
+    """
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+    virus_copy = {}
+    virus_copy.update(virus)
+    genome_length = len(virus_copy['genome'])
+    pdf_out = os.path.join(for_user_dir,'{}.pdf'.format(virus_copy['accession']))
+    color_choices = ['mediumblue',
+                     'darkorange',
+                     'mediumseagreen',
+                     'red',
+                     'salmon',
+                     'gold',
+                     'darkslategrey',
+                     'saddlebrown',
+                     'mediumorchid',
+                     'lawngreen',
+                     'cyan',
+                     'magenta',
+                     'indigo',
+                     'pink'
+                    ]
+    fig, ax = plt.subplots()
+    with PdfPages(pdf_out) as pdf:
+        for gene in virus_copy:
+            # while color in used_colors:
+            #     print("HERE")
+            #     color = random.choice(color_choices)
+            # used_colors.append(color)
+            if gene == 'name' or gene == 'accession' or gene == 'genome':
+                pass
+            else:
+                color = random.choice(color_choices)
+                color_choices.remove(color)
+                if gene == 'E1BS':
+                    start = virus_copy[gene][0]
+                    length = virus_copy[gene][1] - virus_copy[gene][0]
+                    ax.broken_barh([(start, length)], (27, 6), facecolors='dimgray')
+                elif gene == 'E2BS':
+                    for binding_site in virus_copy[gene]:
+                        ax.broken_barh([(binding_site,12)], (12, 6),
+                                       facecolors='black')
+                elif gene == 'URR':
+                    start = virus_copy[gene][0]
+                    length = virus_copy[gene][1] - virus_copy[gene][0]
+                    ax.broken_barh([(start, length)], (42, 6), facecolors=color)
+                elif "E1^E4" in gene:
+                    start_1 = virus_copy[gene][0]
+                    length_1 = virus_copy[gene][1] - virus_copy[gene][0]
+                    start_2 = virus_copy[gene][2]
+                    length_2 = virus_copy[gene][3] - virus_copy[gene][2]
+                    ax.broken_barh([(start_1, length_1),
+                                    (start_2, length_2)],
+                                    (57, 6),
+                                    facecolors=color,
+                                    label=gene)
+                elif "E8^E2" in gene:
+                    start_1 = virus_copy[gene][0]
+                    length_1 = virus_copy[gene][1] - virus_copy[gene][0]
+                    start_2 = virus_copy[gene][2]
+                    length_2 = virus_copy[gene][3] - virus_copy[gene][2]
+                    ax.broken_barh([(start_1, length_1),
+                                       (start_2, length_2)],
+                                   (50, 6),
+                                   facecolors=color,
+                                   label=gene)
+                else:
+                    start = virus_copy[gene][0]
+                    length = virus_copy[gene][1] - virus_copy[gene][0]
+                    frameNumber = virus_copy[gene][0] % 3
+                    if frameNumber == 1:
+                        frame = 1
+                    elif frameNumber == 2:
+                        frame = 2
+                    elif frameNumber == 0:
+                        frame = 3
+                    if frame == 1:
+                        ax.broken_barh([(start, length)],
+                                       (72, 6),
+                                       facecolors=color,
+                                       label=gene)
+                    elif frame == 2:
+                        ax.broken_barh([(start, length)],
+                                       (87, 6),
+                                       facecolors=color,
+                                       label=gene)
+                    elif frame == 3:
+                        ax.broken_barh([(start, length)],
+                                       (102.5, 6),
+                                       facecolors=color,
+                                       label=gene)
+        ax.set_ylim(0, 120)
+        ax.set_xlim(0, genome_length)
+        ax.set_xlabel('Genome Position')
+        ax.set_yticks([15, 30, 45, 60, 75, 90, 105])
+        ax.set_yticklabels(['E2BS', 'E1BS', 'URR', "SPLICED", 'ORF 1', 'ORF 2', 'ORF 3'])
+        plt.legend(loc='lower right', ncol=3, shadow=True)
+        plt.title(virus_copy['name'] + " Linearized Based on L1")
+        pdf.savefig()
+        plt.close()
+        firstPage = plt.figure(figsize=(6, 5))
+        firstPage.clf()
+        text = []
+        bs_list = []
+        txt = ""
+        genome_name = "Genome    1-{}".format(len(virus_copy['genome']))
+        for gene in virus_copy:
+            if gene == 'name' or gene == 'accession' or gene == 'genome':
+                pass
+            else:
+                if "^" in gene:
+                    start_1 = virus_copy[gene][0]
+                    stop_1 = virus_copy[gene][1]
+                    start_2 = virus_copy[gene][2]
+                    stop_2 = virus_copy[gene][3]
+                    text.append("{}     {}-{}, {}-{}".format(gene, start_1, stop_1,
+                                                               start_2, stop_2))
+                elif "BS" in gene:
+                    if gene == 'E1BS':
+                        bs_list.append("{}     {}-{}".format(gene,virus_copy[gene][0],
+                                                             virus_copy[gene][1]))
+                    elif gene == 'E2BS':
+                        for bs in virus_copy[gene]:
+                            bs_list.append("{}     {}-{}".format(gene, bs, bs+11))
+                else:
+                    text.append("{}     {}-{}".format(gene, virus_copy[gene][0],
+                                                      virus_copy[gene][1]))
+        text.sort(key= len)
+        text.insert(0,genome_name)
+        text.extend(bs_list)
+        txt = "\n".join(text)
+        firstPage.text(0, 1, txt, horizontalalignment='left',
+                       verticalalignment='top',fontsize=12)
+        pdf.savefig()
+        plt.close()
 
     return
-
-
 # ----------------------------------------------------------------------------------------
-def to_pdf(annotations, out_dir):
+def to_csv(virus, for_user_dir):
     """
-    Genome visualization to pdf
+    This function creates a comma seperated values file
 
-    :param annotations:
-    :param out_dir:
-    :return:
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param for_user_dir: path to the for_user dictionary that is in the puma_out
+    directory
+    :return: nothing
     """
+    virus_copy = {}
+    virus_copy.update(virus)
 
-    sequence_length = len(annotations['genome'])
+    csv_out = os.path.join(for_user_dir, '{}.csv'.format(virus_copy['accession']))
     try:
-        del annotations['genome']
-        del annotations['E1BS']
-        del annotations['E2BS']
-    except KeyError:
-        pass
-
-    features = []
-
-    pdf_out = os.path.join(out_dir, '{}.pdf'.format(annotations['accession']))
-
-    for value in annotations:
-        if value == 'name' or value == 'accession':
-            pass
-        elif 'E8^' in value:
-            features.append(
-                GraphicFeature(start=annotations[value][0],
-                               end=annotations[value][1],
-                               strand=+1,
-                               color="#800080",
-                               label='E8'))
-            features.append(
-                GraphicFeature(start=annotations[value][2],
-                               end=annotations[value][3],
-                               strand=+1,
-                               color="#800080",
-                               label='E2'))
-        elif 'E1^' in value:
-            features.append(
-                GraphicFeature(start=annotations[value][0],
-                               end=annotations[value][1],
-                               strand=+1,
-                               color="#40e0d0",
-                               label='E1'))
-            features.append(
-                GraphicFeature(start=annotations[value][2],
-                               end=annotations[value][3],
-                               strand=+1,
-                               color="#40e0d0",
-                               label='E4'))
-        elif 'URR' in value:
-            try:
-                features.append(
-                    GraphicFeature(start=annotations[value][0],
-                                   end=annotations[value][1],
-                                   strand=+1,
-                                   color="#ffff00",
-                                   label='URR'))
-                features.append(
-                    GraphicFeature(start=annotations[value][2],
-                                   end=annotations[value][3],
-                                   strand=+1,
-                                   color="#ffff00",
-                                   label='URR'))
-
-            except IndexError:
-                features.append(
-                    GraphicFeature(start=annotations[value][0],
-                                   end=annotations[value][1],
-                                   strand=+1,
-                                   color="#ffff00",
-                                   label='URR'))
-        elif 'L' in value:
-            features.append(
-                GraphicFeature(start=annotations[value][0],
-                               end=annotations[value][1],
-                               strand=+1,
-                               color="#0000ff",
-                               label=value))
-        elif 'E' in value:
-            features.append(
-                GraphicFeature(start=annotations[value][0],
-                               end=annotations[value][1],
-                               strand=+1,
-                               color="#ffa500",
-                               label=value))
-
-    record = GraphicRecord(sequence_length=sequence_length, features=features)
-    ax, _ = record.plot(figure_width=10)
-    ax.figure.savefig(pdf_out)
-    return
-
-
-# ----------------------------------------------------------------------------------------
-
-
-def export_to_csv(annotations, out_dir):
-    """
-        Output to csv file
-
-        :param annotations:
-        :param out_dir:
-        :return:
-        """
-
-    csv_out = os.path.join(out_dir, 'puma_results.csv')
-    try:
-        if annotations['E2BS'] == ['No E2BS found']:
-            del annotations['E2BS']
+        if virus_copy['E2BS'] == ['No E2BS found']:
+            del virus_copy['E2BS']
     except KeyError:
         pass
 
     with open(csv_out, 'a') as out:
         out_file = csv.writer(out)
 
-        for value in annotations:
+        for value in virus_copy:
             if value == 'genome':
                 out_file.writerows([[
-                    annotations['accession'], 'CG', "",
-                    str(annotations[value]).lower()
+                    virus_copy['accession'], 'CG', "",
+                    str(virus_copy[value]).lower()
                 ]])
             elif value == 'URR':
                 try:
                     out_file.writerows([[
-                        annotations['accession'], value,
-                        'join(' + str(annotations[value][0]) + '..' +
-                        str(annotations[value][1]) + '+' +
-                        str(annotations[value][2]) + ".." +
-                        str(annotations[value][3]) + ')', annotations[value][4]
+                        virus_copy['accession'], value,
+                        'join(' + str(virus_copy[value][0]) + '..' +
+                        str(virus_copy[value][1]) + '+' +
+                        str(virus_copy[value][2]) + ".." +
+                        str(virus_copy[value][3]) + ')', virus_copy[value][4]
                     ]])
                 except IndexError:
                     out_file.writerows([[
-                        annotations['accession'], value,
-                        str(annotations[value][0]) + '..' +
-                        str(annotations[value][1]), annotations[value][2]
+                        virus_copy['accession'], value,
+                        str(virus_copy[value][0]) + '..' +
+                        str(virus_copy[value][1]), virus_copy[value][2]
                     ]])
             elif value == 'E1BS':
                 try:
                     out_file.writerows([[
-                        annotations['accession'], value,
-                        'join(' + str(annotations[value][0]) + '..' +
-                        str(annotations[value][1]) + '+' +
-                        str(annotations[value][2]) + ".." +
-                        str(annotations[value][3]) + ')', annotations[value][4]
+                        virus_copy['accession'], value,
+                        'join(' + str(virus_copy[value][0]) + '..' +
+                        str(virus_copy[value][1]) + '+' +
+                        str(virus_copy[value][2]) + ".." +
+                        str(virus_copy[value][3]) + ')', virus_copy[value][4]
                     ]])
                 except IndexError:
                     out_file.writerows([[
-                        annotations['accession'], value,
-                        str(annotations[value][0]) + '..' +
-                        str(annotations[value][1]), annotations[value][2]
+                        virus_copy['accession'], value,
+                        str(virus_copy[value][0]) + '..' +
+                        str(virus_copy[value][1]), virus_copy[value][2]
                     ]])
             elif value == 'E2BS':
-                for i in range(0, len(annotations[value]), 1):
+                for i in range(0, len(virus_copy[value]), 1):
                     out_file.writerows([[
-                        annotations['accession'], value,
-                        str(annotations[value][i]) + '..' +
-                        str(annotations[value][i] + 11),
-                        str(annotations['genome'][annotations[value][i] -
-                                                  1:annotations[value][i] +
+                        virus_copy['accession'], value,
+                        str(virus_copy[value][i]) + '..' +
+                        str(virus_copy[value][i] + 11),
+                        str(virus_copy['genome'][virus_copy[value][i] -
+                                                  1:virus_copy[value][i] +
                                                   11]).lower()
                     ]])
             elif value == 'E1^E4':
                 out_file.writerows([[
-                    annotations['accession'], value,
-                    'join(' + str(annotations[value][0]) + '..' +
-                    str(annotations[value][1]) + '+' +
-                    str(annotations[value][2]) + ".." +
-                    str(annotations[value][3]) + ')', annotations[value][4],
-                    annotations[value][5]
+                    virus_copy['accession'], value,
+                    'join(' + str(virus_copy[value][0]) + '..' +
+                    str(virus_copy[value][1]) + '+' +
+                    str(virus_copy[value][2]) + ".." +
+                    str(virus_copy[value][3]) + ')', virus_copy[value][4],
+                    virus_copy[value][5]
                 ]])
             elif value == 'E8^E2':
                 out_file.writerows([[
-                    annotations['accession'], value,
-                    'join(' + str(annotations[value][0]) + '..' +
-                    str(annotations[value][1]) + '+' +
-                    str(annotations[value][2]) + ".." +
-                    str(annotations[value][3]) + ')', annotations[value][4],
-                    annotations[value][5]
+                    virus_copy['accession'], value,
+                    'join(' + str(virus_copy[value][0]) + '..' +
+                    str(virus_copy[value][1]) + '+' +
+                    str(virus_copy[value][2]) + ".." +
+                    str(virus_copy[value][3]) + ')', virus_copy[value][4],
+                    virus_copy[value][5]
                 ]])
             elif value == 'name':
                 pass
@@ -1739,82 +1768,80 @@ def export_to_csv(annotations, out_dir):
                 pass
             else:
                 out_file.writerows([[
-                    annotations['accession'], value,
-                    str(annotations[value][0]) + '..' +
-                    str(annotations[value][1]), annotations[value][2],
-                    annotations[value][3]
+                    virus_copy['accession'], value,
+                    str(virus_copy[value][0]) + '..' +
+                    str(virus_copy[value][1]), virus_copy[value][2],
+                    virus_copy[value][3]
                 ]])
-
     return
-
-
 # ----------------------------------------------------------------------------------------
-def to_results(dict):
+def to_results(virus):
     """
-    :param dict:
+
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
     :return:
     """
+    virus_copy = {}
+    virus_copy.update(virus)
+
     try:
-        del dict['genome']
-        del dict['accession']
-        del dict['E1BS']
-        del dict['E2BS']
+        del virus_copy['genome']
+        del virus_copy['accession']
+        del virus_copy['E1BS']
+        del virus_copy['E2BS']
     except KeyError:
         pass
-    all = dict['name']
+    all = virus_copy['name']
     #short_name = re.search('\(([^)]+)', all).group(1)
-    #dict['name'] = short_name
+    #virus_copy['name'] = short_name
 
     results_dir = os.path.join('puma_results')
 
-    results = os.path.join(results_dir, 'puma_results_new_genomes_6.24.fa')
+    results = os.path.join(results_dir, 'puma_results_481_genomes.fa')
 
-    for protein in dict:
+    for protein in virus_copy:
         if protein == 'name':
             pass
         elif protein == 'accession':
             pass
         elif protein == 'URR':
             try:
-                if type(dict[protein][3]) == int:
+                if type(virus_copy[protein][3]) == int:
                     with open(results, 'a') as out_file:
                         out_file.write(">{}_{}\n".format(
-                            dict['name'], protein))
-                        out_file.write("{}\n".format(dict[protein][4]))
+                            virus_copy['name'], protein))
+                        out_file.write("{}\n".format(virus_copy[protein][4]))
                 else:
                     with open(results, 'a') as out_file:
                         out_file.write(">{}_{}\n".format(
-                            dict['name'], protein))
-                        out_file.write("{}\n".format(dict[protein][2]))
+                            virus_copy['name'], protein))
+                        out_file.write("{}\n".format(virus_copy[protein][2]))
             except IndexError:
                 with open(results, 'a') as out_file:
-                    out_file.write(">{}_{}\n".format(dict['name'], protein))
-                    out_file.write("{}\n".format(dict[protein][2]))
+                    out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
+                    out_file.write("{}\n".format(virus_copy[protein][2]))
 
         elif '^' in protein:
             with open(results, 'a') as out_file:
-                out_file.write(">{}_{}\n".format(dict['name'], protein))
-                out_file.write("{}\n".format(dict[protein][4]))
+                out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
+                out_file.write("{}\n".format(virus_copy[protein][4]))
         else:
             with open(results, 'a') as out_file:
-                out_file.write(">{}_{}\n".format(dict['name'], protein))
-                out_file.write("{}\n".format(dict[protein][2]))
-
+                out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
+                out_file.write("{}\n".format(virus_copy[protein][2]))
     return
-
-
 # ----------------------------------------------------------------------------------------
-def print_genome_info(virus, args):
+def print_genome_info(virus):
+    """
+    This function prints all the found annotations
 
-    print(
-        "\nThis is the gene information for {} after making L1 end of Genome:".
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :return: nothing
+    """
+    print("\nThis is the gene information for {} after making L1 end of Genome:".
         format(virus['accession']))
-    # if args['sites'] == ['ALL']:
-    #     sites = {}
-    #     sites.update(virus)
-    #     del sites['name']
-    #     del sites['genome']
-    #     del sites['accession']
     for name in virus:
         if name == 'genome':
             pass
@@ -1867,15 +1894,13 @@ def print_genome_info(virus, args):
                     print('{} translated seqeunce:\n{}\n'.format(
                         name, virus[name][3][:-1]))
     print("All annotations displayed above.\n")
-
     return
-
-
 # ----------------------------------------------------------------------------------------
 def validate_args(args):
     """
     Validates command line arguments
-    :param args:
+
+    :param args: command line arguments
     :return: dictionary, keys are the command argument names, values are the command
     line values
     """
@@ -1883,20 +1908,19 @@ def validate_args(args):
     #sites = args['sites'] if 'sites' in args else ['ALL']
     #sites = args.get('sites') or []
     input_file = args.get('input')
-    out_dir = args.get('outdir')
+    out_dir = args.get('out_dir')
     data_dir = args.get('data_dir')
     input_format = args.get('format').lower()
     min_prot_len = args.get('min_prot_len')
     e_value = args.get('evalue')
-    create_gff3 = args.get('gff3')
-    create_csv = args.get('csv')
-    blast_e1_e8_dir = os.path.join(out_dir, 'blastE1E8')
-    if not os.path.isdir(blast_e1_e8_dir):
-        os.makedirs(blast_e1_e8_dir)
-
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
-
+    for_user_dir = os.path.join(out_dir, 'for_user')
+    if not os.path.isdir(for_user_dir):
+        os.makedirs(for_user_dir)
+    program_dir = os.path.join(out_dir, 'program_files')
+    if not os.path.isdir(program_dir):
+        os.makedirs(program_dir)
     return {
         'input_file': input_file,
         'out_dir': out_dir,
@@ -1904,36 +1928,37 @@ def validate_args(args):
         'input_format': input_format,
         'min_prot_len': min_prot_len,
         'e_value': e_value,
-        'create_gff3': create_gff3,
-        'create_csv': create_csv,
-        'blast_e1_e8_dir': blast_e1_e8_dir
+        'for_user_dir': for_user_dir,
+        'program_files_dir': program_dir
     }
-
-
 # ----------------------------------------------------------------------------------------
 def puma_output(virus, args):
+    """
+    This functions calls all the functions that are related to creating the output files
 
-    altered_genome_len = len(str(virus['genome']))
-    print_genome_info(virus, args)
-    to_pdf(virus, args['out_dir'])
-    if args['create_csv']:
-        export_to_csv(virus, args['out_dir'])
-    if args['create_gff3']:
-        to_gff3(virus, altered_genome_len, args['out_dir'])
-    # to_results(virus)
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :param startE2_nt: nucleotide start position of the splice acceptor site
+    :param args: command line arguments for data_dir etc
+    :return: nothing
+    """
 
+    #print_genome_info(virus)
+    to_graphic(virus, args['for_user_dir'])
+    #to_pdf(virus, args['for_user_dir'])
+    to_csv(virus, args['for_user_dir'])
+    to_gff3(virus, args['for_user_dir'])
+    #to_results(virus)
     return
-
-
 # ----------------------------------------------------------------------------------------
 def run(args):
     """main"""
+
     virus = {}
     blasted = {}
     logging.info('run = {}\n'.format(args))
     warnings.simplefilter('ignore', BiopythonWarning)
     args = validate_args(args)
-
     for seq_record in SeqIO.parse(args['input_file'], args['input_format']):
         original_genome = seq_record.seq
         name = seq_record.description.split(",")[0]
@@ -1960,19 +1985,21 @@ def run(args):
     E1BS = find_e1bs(virus, args)
     if E1BS:
         virus.update(E1BS)
-
     E2BS = find_e2bs(virus, args)
     if E2BS['E2BS'] != ["No E2BS found"]:
         virus.update(E2BS)
 
-    if 'E2' in virus.keys():
-        start_splice_site = find_splice_acceptor(virus, args)
-        if start_splice_site > 0:
-            E1_E4 = find_e1_e4(virus, start_splice_site, args)
-            E8_E2 = find_e8_e2(virus, start_splice_site, args)
-            if E8_E2['E8^E2'][-1][-20:] == virus['E2'][-1][-20:]:
-                virus.update(E8_E2)
-                virus.update(E1_E4)
-
-    #puma_output(virus,args)
+        if 'E2' in virus.keys():
+            start_splice_site = find_splice_acceptor(virus, args)
+            if start_splice_site > 0:
+                E1_E4 = find_e1_e4(virus, start_splice_site, args)
+                E8_E2 = find_e8_e2(virus, start_splice_site, args)
+                if E8_E2['E8^E2'][-1][-20:] == virus['E2'][-1][-20:]:
+                    virus.update(E8_E2)
+                    virus.update(E1_E4)
+                else:
+                    print("Last 20 aa don't match")
+                    logging.info("There was a problem finding the spliced proteins and "
+                                 "therefore the results are not displayed.")
+    puma_output(virus,args)
     return 1
