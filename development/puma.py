@@ -2167,9 +2167,9 @@ def run(args):
         original_genome = seq_record.seq
         name = seq_record.description.split(",")[0]
         ID = seq_record.name
-    #full_name = name.split("|")[1]
-    #ID = name.split("|")[0]
-    virus['name'] = name  # full_name
+    full_name = name.split("|")[1]
+    ID = name.split("|")[0]
+    virus['name'] = full_name #name
     virus['accession'] = ID
     print("\n" + ID + "\n")
     altered_genome = linearize_genome(original_genome, args)
