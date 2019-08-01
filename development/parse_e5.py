@@ -18,10 +18,8 @@ def main():
     hdrs = ('qseqid sseqid pident length mismatch gapopen qstart '
             'qend sstart send evalue bitscore').split()
     df = pd.read_csv('blast_results_E5_HPV16.tab', sep='\t', names=hdrs)
-    length = 109
     evalue = 1
-    wanted = df[df.apply(lambda x: '_' in x['sseqid'] and x['length'] > length
-                         and x['evalue'] < evalue,
+    wanted = df[df.apply(lambda x: '_' in x['sseqid'] and x['evalue'] < evalue,
                          axis=1)]
 
     if len(wanted) < 1:
