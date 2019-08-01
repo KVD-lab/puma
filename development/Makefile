@@ -10,4 +10,4 @@ bpv2: clean
 	./run_puma.py -i bpv2.fa -d ../data_dir -D debug
 
 ampv4: clean
-	./run_puma.py -i ampv4.fa -d ../data_dir -D debug	
+	./run_puma.py -i ampv4.fa -f fasta -d ../data_dir -D debug	
