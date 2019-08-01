@@ -43,7 +43,7 @@ from dire import die
 
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def make_l1_end(l1Result, original_genome, original_genome_length):
     """
     This function makes the L1 stop postion the last nucleotide of the genome and L1
@@ -56,6 +56,7 @@ def make_l1_end(l1Result, original_genome, original_genome_length):
     """
     start = l1Result[0]
     stop = l1Result[1]
+    new_genome = ''
 
     #When gene wraps around
     if start < original_genome_length and stop > original_genome_length:
@@ -74,20 +75,14 @@ def make_l1_end(l1Result, original_genome, original_genome_length):
         new_stop = stop + len(sequence)
         new_genome = sequence + original_genome  # Still has extra at the beginning
         new_genome = new_genome[:new_stop]
+    # else?
     elif stop == original_genome_length:
         new_genome = original_genome
+
     return new_genome
 
 
-# ----------------------------------------------------------------------------------------
-# def test_make_l1_end():
-#     #HPV16
-#     l1Result = [5639, 7156]
-#     original_genome = """ACTACAATAATTCATGTATAAAACTAAGGGCGTAACCGAAATCGGTTGAACCGAAACCGGTTAGTATAAAAGCAGACATTTTATGCACCAAAAGAGAACTGCAATGTTTCAGGACCCACAGGAGCGACCCAGAAAGTTACCACAGTTATGCACAGAGCTGCAAACAACTATACATGATATAATATTAGAATGTGTGTACTGCAAGCAACAGTTACTGCGACGTGAGGTATATGACTTTGCTTTTCGGGATTTATGCATAGTATATAGAGATGGGAATCCATATGCTGTATGTGATAAATGTTTAAAGTTTTATTCTAAAATTAGTGAGTATAGACATTATTGTTATAGTTTGTATGGAACAACATTAGAACAGCAATACAACAAACCGTTGTGTGATTTGTTAATTAGGTGTATTAACTGTCAAAAGCCACTGTGTCCTGAAGAAAAGCAAAGACATCTGGACAAAAAGCAAAGATTCCATAATATAAGGGGTCGGTGGACCGGTCGATGTATGTCTTGTTGCAGATCATCAAGAACACGTAGAGAAACCCAGCTGTAATCATGCATGGAGATACACCTACATTGCATGAATATATGTTAGATTTGCAACCAGAGACAACTGATCTCTACTGTTATGAGCAATTAAATGACAGCTCAGAGGAGGAGGATGAAATAGATGGTCCAGCTGGACAAGCAGAACCGGACAGAGCCCATTACAATATTGTAACCTTTTGTTGCAAGTGTGACTCTACGCTTCGGTTGTGCGTACAAAGCACACACGTAGACATTCGTACTTTGGAAGACCTGTTAATGGGCACACTAGGAATTGTGTGCCCCATCTGTTCTCAGAAACCATAATCTACCATGGCTGATCCTGCAGGTACCAATGGGGAAGAGGGTACGGGATGTAATGGATGGTTTTATGTAGAGGCTGTAGTGGAAAAAAAAACAGGGGATGCTATATCAGATGACGAGAACGAAAATGACAGTGATACAGGTGAAGATTTGGTAGATTTTATAGTAAATGATAATGATTATTTAACACAGGCAGAAACAGAGACAGCACATGCGTTGTTTACTGCACAGGAAGCAAAACAACATAGAGATGCAGTACAGGTTCTAAAACGAAAGTATTTGGGTAGTCCACTTAGTGATATTAGTGGATGTGTAGACAATAATATTAGTCCTAGATTAAAAGCTATATGTATAGAAAAACAAAGTAGAGCTGCAAAAAGGAGATTATTTGAAAGCGAAGACAGCGGGTATGGCAATACTGAAGTGGAAACTCAGCAGATGTTACAGGTAGAAGGGCGCCATGAGACTGAAACACCATGTAGTCAGTATAGTGGTGGAAGTGGGGGTGGTTGCAGTCAGTACAGTAGTGGAAGTGGGGGAGAGGGTGTTAGTGAAAGACACACTATATGCCAAACACCACTTACAAATATTTTAAATGTACTAAAAACTAGTAATGCAAAGGCAGCAATGTTAGCAAAATTTAAAGAGTTATACGGGGTGAGTTTTTCAGAATTAGTAAGACCATTTAAAAGTAATAAATCAACGTGTTGCGATTGGTGTATTGCTGCATTTGGACTTACACCCAGTATAGCTGACAGTATAAAAACACTATTACAACAATATTGTTTATATTTACACATTCAAAGTTTAGCATGTTCATGGGGAATGGTTGTGTTACTATTAGTAAGATATAAATGTGGAAAAAATAGAGAAACAATTGAAAAATTGCTGTCTAAACTATTATGTGTGTCTCCAATGTGTATGATGATAGAGCCTCCAAAATTGCGTAGTACAGCAGCAGCATTATATTGGTATAAAACAGGTATATCAAATATTAGTGAAGTGTATGGAGACACGCCAGAATGGATACAAAGACAAACAGTATTACAACATAGTTTTAATGATTGTACATTTGAATTATCACAGATGGTACAATGGGCCTACGATAATGACATAGTAGACGATAGTGAAATTGCATATAAATATGCACAATTGGCAGACACTAATAGTAATGCAAGTGCCTTTCTAAAAAGTAATTCACAGGCAAAAATTGTAAAGGATTGTGCAACAATGTGTAGACATTATAAACGAGCAGAAAAAAAACAAATGAGTATGAGTCAATGGATAAAATATAGATGTGATAGGGTAGATGATGGAGGTGATTGGAAGCAAATTGTTATGTTTTTAAGGTATCAAGGTGTAGAGTTTATGTCATTTTTAACTGCATTAAAAAGATTTTTGCAAGGCATACCTAAAAAAAATTGCATATTACTATATGGTGCAGCTAACACAGGTAAATCATTATTTGGTATGAGTTTAATGAAATTTCTGCAAGGGTCTGTAATATGTTTTGTAAATTCTAAAAGCCATTTTTGGTTACAACCATTAGCAGATGCCAAAATAGGTATGTTAGATGATGCTACAGTGCCCTGTTGGAACTACATAGATGACAATTTAAGAAATGCATTGGATGGAAATTTAGTTTCTATGGATGTAAAGCATAGACCATTGGTACAACTAAAATGCCCTCCATTATTAATTACATCTAACATTAATGCTGGTACAGATTCTAGGTGGCCTTATTTACATAATAGATTGGTGGTGTTTACATTTCCTAATGAGTTTCCATTTGACGAAAACGGAAATCCAGTGTATGAGCTTAATGATAAGAACTGGAAATCCTTTTTCTCAAGGACGTGGTCCAGATTAAGTTTGCACGAGGACGAGGACAAGGAAAACGATGGAGACTCTTTGCCAACGTTTAAATGTGTGTCAGGACAAAATACTAACACATTATGAAAATGATAGTACAGACCTACGTGACCATATAGACTATTGGAAACACATGCGCCTAGAATGTGCTATTTATTACAAGGCCAGAGAAATGGGATTTAAACATATTAACCACCAGGTGGTGCCAACACTGGCTGTATCAAAGAATAAAGCATTACAAGCAATTGAACTGCAACTAACGTTAGAAACAATATATAACTCACAATATAGTAATGAAAAGTGGACATTACAAGACGTTAGCCTTGAAGTGTATTTAACTGCACCAACAGGATGTATAAAAAAACATGGATATACAGTGGAAGTGCAGTTTGATGGAGACATATGCAATACAATGCATTATACAAACTGGACACATATATATATTTGTGAAGAAGCATCAGTAACTGTGGTAGAGGGTCAAGTTGACTATTATGGTTTATATTATGTTCATGAAGGAATACGAACATATTTTGTGCAGTTTAAAGATGATGCAGAAAAATATAGTAAAAATAAAGTATGGGAAGTTCATGCGGGTGGTCAGGTAATATTATGTCCTACATCTGTGTTTAGCAGCAACGAAGTATCCTCTCCTGAAATTATTAGGCAGCACTTGGCCAACCACCCCGCCGCGACCCATACCAAAGCCGTCGCCTTGGGCACCGAAGAAACACAGACGACTATCCAGCGACCAAGATCAGAGCCAGACACCGGAAACCCCTGCCACACCACTAAGTTGTTGCACAGAGACTCAGTGGACAGTGCTCCAATCCTCACTGCATTTAACAGCTCACACAAAGGACGGATTAACTGTAATAGTAACACTACACCCATAGTACATTTAAAAGGTGATGCTAATACTTTAAAATGTTTAAGATATAGATTTAAAAAGCATTGTACATTGTATACTGCAGTGTCGTCTACATGGCATTGGACAGGACATAATGTAAAACATAAAAGTGCAATTGTTACACTTACATATGATAGTGAATGGCAACGTGACCAATTTTTGTCTCAAGTTAAAATACCAAAAACTATTACAGTGTCTACTGGATTTATGTCTATATGACAAATCTTGATACTGCATCCACAACATTACTGGCGTGCTTTTTGCTTTGCTTTTGTGTGCTTTTGTGTGTCTGCCTATTAATACGTCCGCTGCTTTTGTCTGTGTCTACATACACATCATTAATAATATTGGTATTACTATTGTGGATAACAGCAGCCTCTGCGTTTAGGTGTTTTATTGTATATATTATATTTGTTTATATACCATTATTTTTAATACATACACATGCACGCTTTTTAATTACATAATGTATATGTACATAATGTAATTGTTACATATAATTGTTGTATACCATAACTTACTATTTTTTCTTTTTTATTTTCATATATAATTTTTTTTTTTGTTTGTTTGTTTGTTTTTTAATAAACTGTTATTACTTAACAATGCGACACAAACGTTCTGCAAAACGCACAAAACGTGCATCGGCTACCCAACTTTATAAAACATGCAAACAGGCAGGTACATGTCCACCTGACATTATACCTAAGGTTGAAGGCAAAACTATTGCTGATCAAATATTACAATATGGAAGTATGGGTGTATTTTTTGGTGGGTTAGGAATTGGAACAGGGTCGGGTACAGGCGGACGCACTGGGTATATTCCATTGGGAACAAGGCCTCCCACAGCTACAGATACACTTGCTCCTGTAAGACCCCCTTTAACAGTAGATCCTGTGGGCCCTTCTGATCCTTCTATAGTTTCTTTAGTGGAAGAAACTAGTTTTATTGATGCTGGTGCACCAACATCTGTACCTTCCATTCCCCCAGATGTATCAGGATTTAGTATTACTACTTCAACTGATACCACACCTGCTATATTAGATATTAATAATACTGTTACTACTGTTACTACACATAATAATCCCACTTTCACTGACCCATCTGTATTGCAGCCTCCAACACCTGCAGAAACTGGAGGGCATTTTACACTTTCATCATCCACTATTAGTACACATAATTATGAAGAAATTCCTATGGATACATTTATTGTTAGCACAAACCCTAACACAGTAACTAGTAGCACACCCATACCAGGGTCTCGCCCAGTGGCACGCCTAGGATTATATAGTCGCACAACACAACAGGTTAAAGTTGTAGACCCTGCTTTTGTAACCACTCCCACTAAACTTATTACATATGATAATCCTGCATATGAAGGTATAGATGTGGATAATACATTATATTTTTCTAGTAATGATAATAGTATTAATATAGCTCCAGATCCTGACTTTTTGGATATAGTTGCTTTACATAGGCCAGCATTAACCTCTAGGCGTACTGGCATTAGGTACAGTAGAATTGGTAATAAACAAACACTACGTACTCGTAGTGGAAAATCTATAGGTGCTAAGGTACATTATTATTATGATTTAAGTACTATTGATCCTGCAGAAGAAATAGAATTACAAACTATAACACCTTCTACATATACTACCACTTCACATGCAGCCTCACCTACTTCTATTAATAATGGATTATATGATATTTATGCAGATGACTTTATTACAGATACTTCTACAACCCCGGTACCATCTGTACCCTCTACATCTTTATCAGGTTATATTCCTGCAAATACAACAATTCCTTTTGGTGGTGCATACAATATTCCTTTAGTATCAGGTCCTGATATACCCATTAATATAACTGACCAAGCTCCTTCATTAATTCCTATAGTTCCAGGGTCTCCACAATATACAATTATTGCTGATGCAGGTGACTTTTATTTACATCCTAGTTATTACATGTTACGAAAACGACGTAAACGTTTACCATATTTTTTTTCAGATGTCTCTTTGGCTGCCTAGTGAGGCCACTGTCTACTTGCCTCCTGTCCCAGTATCTAAGGTTGTAAGCACGGATGAATATGTTGCACGCACAAACATATATTATCATGCAGGAACATCCAGACTACTTGCAGTTGGACATCCCTATTTTCCTATTAAAAAACCTAACAATAACAAAATATTAGTTCCTAAAGTATCAGGATTACAATACAGGGTATTTAGAATACATTTACCTGACCCCAATAAGTTTGGTTTTCCTGACACCTCATTTTATAATCCAGATACACAGCGGCTGGTTTGGGCCTGTGTAGGTGTTGAGGTAGGTCGTGGTCAGCCATTAGGTGTGGGCATTAGTGGCCATCCTTTATTAAATAAATTGGATGACACAGAAAATGCTAGTGCTTATGCAGCAAATGCAGGTGTGGATAATAGAGAATGTATATCTATGGATTACAAACAAACACAATTGTGTTTAATTGGTTGCAAACCACCTATAGGGGAACACTGGGGCAAAGGATCCCCATGTACCAATGTTGCAGTAAATCCAGGTGATTGTCCACCATTAGAGTTAATAAACACAGTTATTCAGGATGGTGATATGGTTGATACTGGCTTTGGTGCTATGGACTTTACTACATTACAGGCTAACAAAAGTGAAGTTCCACTGGATATTTGTACATCTATTTGCAAATATCCAGATTATATTAAAATGGTGTCAGAACCATATGGCGACAGCTTATTTTTTTATTTACGAAGGGAACAAATGTTTGTTAGACATTTATTTAATAGGGCTGGTACTGTTGGTGAAAATGTACCAGACGATTTATACATTAAAGGCTCTGGGTCTACTGCAAATTTAGCCAGTTCAAATTATTTTCCTACACCTAGTGGTTCTATGGTTACCTCTGATGCCCAAATATTCAATAAACCTTATTGGTTACAACGAGCACAGGGCCACAATAATGGCATTTGTTGGGGTAACCAACTATTTGTTACTGTTGTTGATACTACACGCAGTACAAATATGTCATTATGTGCTGCCATATCTACTTCAGAAACTACATATAAAAATACTAACTTTAAGGAGTACCTACGACATGGGGAGGAATATGATTTACAGTTTATTTTTCAACTGTGCAAAATAACCTTAACTGCAGACGTTATGACATACATACATTCTATGAATTCCACTATTTTGGAGGACTGGAATTTTGGTCTACAACCTCCCCCAGGAGGCACACTAGAAGATACTTATAGGTTTGTAACATCCCAGGCAATTGCTTGTCAAAAACATACACCTCCAGCACCTAAAGAAGATCCCCTTAAAAAATACACTTTTTGGGAAGTAAATTTAAAGGAAAAGTTTTCTGCAGACCTAGATCAGTTTCCTTTAGGACGCAAATTTTTACTACAAGCAGGATTGAAGGCCAAACCAAAATTTACATTAGGAAAACGAAAAGCTACACCCACCACCTCATCTACCTCTACAACTGCTAAACGCAAAAAACGTAAGCTGTAAGTATTGTATGTATGTTGAATTAGTGTTGTTTGTTGTGTATATGTTTGTATGTGCTTGTATGTGCTTGTAAATATTAAGTTGTATGTGTGTTTGTATGTATGGTATAATAAACACGTGTGTATGTGTTTTTAAATGCTTGTGTAACTATTGTGTCATGCAACATAAATAAACTTATTGTTTCAACACCTACTAATTGTGTTGTGGTTATTCATTGTATATAAACTATATTTGCTACATCCTGTTTTTGTTTTATATATACTATATTTTGTAGCGCCAGCGGCCATTTTGTAGCTTCAACCGAATTCGGTTGCATGCTTTTTGGCACAAAATGTGTTTTTTTAAATAGTTCTATGTCAGCAACTATGGTTTAAACTTGTACGTTTCCTGCTTGCCATGCGTGCCAAATCCCTGTTTTCCTGACCTGCACTGCTTGCCAACCATTCCATTGTTTTTTACACTGCACTATGTGCAACTACTGAATCACTATGTACATTGTGTCATATAAAATAAATCACTATGCGCCAACGCCTTACATACCGCTGTTAGGCACATATTTTTGGCTTGTTTTAACTAACCTAATTGCATATTTGGCATAAGGTTTAAACTTCTAAGGCCAACTAAATGTCACCCTAGTTCATACATGAACTGTGTAAAGGTTAGTCATACATTGTTCATTTGTAAAACTGCACATGGGTGTGTGCAAACCGTTTTGGGTTACACATTTACAAGCAACTTATATAATAATACTAA"""
-#     original_genome_length = 7906
-#     new_genome = """GTATTGTATGTATGTTGAATTAGTGTTGTTTGTTGTGTATATGTTTGTATGTGCTTGTATGTGCTTGTAAATATTAAGTTGTATGTGTGTTTGTATGTATGGTATAATAAACACGTGTGTATGTGTTTTTAAATGCTTGTGTAACTATTGTGTCATGCAACATAAATAAACTTATTGTTTCAACACCTACTAATTGTGTTGTGGTTATTCATTGTATATAAACTATATTTGCTACATCCTGTTTTTGTTTTATATATACTATATTTTGTAGCGCCAGCGGCCATTTTGTAGCTTCAACCGAATTCGGTTGCATGCTTTTTGGCACAAAATGTGTTTTTTTAAATAGTTCTATGTCAGCAACTATGGTTTAAACTTGTACGTTTCCTGCTTGCCATGCGTGCCAAATCCCTGTTTTCCTGACCTGCACTGCTTGCCAACCATTCCATTGTTTTTTACACTGCACTATGTGCAACTACTGAATCACTATGTACATTGTGTCATATAAAATAAATCACTATGCGCCAACGCCTTACATACCGCTGTTAGGCACATATTTTTGGCTTGTTTTAACTAACCTAATTGCATATTTGGCATAAGGTTTAAACTTCTAAGGCCAACTAAATGTCACCCTAGTTCATACATGAACTGTGTAAAGGTTAGTCATACATTGTTCATTTGTAAAACTGCACATGGGTGTGTGCAAACCGTTTTGGGTTACACATTTACAAGCAACTTATATAATAATACTAAACTACAATAATTCATGTATAAAACTAAGGGCGTAACCGAAATCGGTTGAACCGAAACCGGTTAGTATAAAAGCAGACATTTTATGCACCAAAAGAGAACTGCAATGTTTCAGGACCCACAGGAGCGACCCAGAAAGTTACCACAGTTATGCACAGAGCTGCAAACAACTATACATGATATAATATTAGAATGTGTGTACTGCAAGCAACAGTTACTGCGACGTGAGGTATATGACTTTGCTTTTCGGGATTTATGCATAGTATATAGAGATGGGAATCCATATGCTGTATGTGATAAATGTTTAAAGTTTTATTCTAAAATTAGTGAGTATAGACATTATTGTTATAGTTTGTATGGAACAACATTAGAACAGCAATACAACAAACCGTTGTGTGATTTGTTAATTAGGTGTATTAACTGTCAAAAGCCACTGTGTCCTGAAGAAAAGCAAAGACATCTGGACAAAAAGCAAAGATTCCATAATATAAGGGGTCGGTGGACCGGTCGATGTATGTCTTGTTGCAGATCATCAAGAACACGTAGAGAAACCCAGCTGTAATCATGCATGGAGATACACCTACATTGCATGAATATATGTTAGATTTGCAACCAGAGACAACTGATCTCTACTGTTATGAGCAATTAAATGACAGCTCAGAGGAGGAGGATGAAATAGATGGTCCAGCTGGACAAGCAGAACCGGACAGAGCCCATTACAATATTGTAACCTTTTGTTGCAAGTGTGACTCTACGCTTCGGTTGTGCGTACAAAGCACACACGTAGACATTCGTACTTTGGAAGACCTGTTAATGGGCACACTAGGAATTGTGTGCCCCATCTGTTCTCAGAAACCATAATCTACCATGGCTGATCCTGCAGGTACCAATGGGGAAGAGGGTACGGGATGTAATGGATGGTTTTATGTAGAGGCTGTAGTGGAAAAAAAAACAGGGGATGCTATATCAGATGACGAGAACGAAAATGACAGTGATACAGGTGAAGATTTGGTAGATTTTATAGTAAATGATAATGATTATTTAACACAGGCAGAAACAGAGACAGCACATGCGTTGTTTACTGCACAGGAAGCAAAACAACATAGAGATGCAGTACAGGTTCTAAAACGAAAGTATTTGGGTAGTCCACTTAGTGATATTAGTGGATGTGTAGACAATAATATTAGTCCTAGATTAAAAGCTATATGTATAGAAAAACAAAGTAGAGCTGCAAAAAGGAGATTATTTGAAAGCGAAGACAGCGGGTATGGCAATACTGAAGTGGAAACTCAGCAGATGTTACAGGTAGAAGGGCGCCATGAGACTGAAACACCATGTAGTCAGTATAGTGGTGGAAGTGGGGGTGGTTGCAGTCAGTACAGTAGTGGAAGTGGGGGAGAGGGTGTTAGTGAAAGACACACTATATGCCAAACACCACTTACAAATATTTTAAATGTACTAAAAACTAGTAATGCAAAGGCAGCAATGTTAGCAAAATTTAAAGAGTTATACGGGGTGAGTTTTTCAGAATTAGTAAGACCATTTAAAAGTAATAAATCAACGTGTTGCGATTGGTGTATTGCTGCATTTGGACTTACACCCAGTATAGCTGACAGTATAAAAACACTATTACAACAATATTGTTTATATTTACACATTCAAAGTTTAGCATGTTCATGGGGAATGGTTGTGTTACTATTAGTAAGATATAAATGTGGAAAAAATAGAGAAACAATTGAAAAATTGCTGTCTAAACTATTATGTGTGTCTCCAATGTGTATGATGATAGAGCCTCCAAAATTGCGTAGTACAGCAGCAGCATTATATTGGTATAAAACAGGTATATCAAATATTAGTGAAGTGTATGGAGACACGCCAGAATGGATACAAAGACAAACAGTATTACAACATAGTTTTAATGATTGTACATTTGAATTATCACAGATGGTACAATGGGCCTACGATAATGACATAGTAGACGATAGTGAAATTGCATATAAATATGCACAATTGGCAGACACTAATAGTAATGCAAGTGCCTTTCTAAAAAGTAATTCACAGGCAAAAATTGTAAAGGATTGTGCAACAATGTGTAGACATTATAAACGAGCAGAAAAAAAACAAATGAGTATGAGTCAATGGATAAAATATAGATGTGATAGGGTAGATGATGGAGGTGATTGGAAGCAAATTGTTATGTTTTTAAGGTATCAAGGTGTAGAGTTTATGTCATTTTTAACTGCATTAAAAAGATTTTTGCAAGGCATACCTAAAAAAAATTGCATATTACTATATGGTGCAGCTAACACAGGTAAATCATTATTTGGTATGAGTTTAATGAAATTTCTGCAAGGGTCTGTAATATGTTTTGTAAATTCTAAAAGCCATTTTTGGTTACAACCATTAGCAGATGCCAAAATAGGTATGTTAGATGATGCTACAGTGCCCTGTTGGAACTACATAGATGACAATTTAAGAAATGCATTGGATGGAAATTTAGTTTCTATGGATGTAAAGCATAGACCATTGGTACAACTAAAATGCCCTCCATTATTAATTACATCTAACATTAATGCTGGTACAGATTCTAGGTGGCCTTATTTACATAATAGATTGGTGGTGTTTACATTTCCTAATGAGTTTCCATTTGACGAAAACGGAAATCCAGTGTATGAGCTTAATGATAAGAACTGGAAATCCTTTTTCTCAAGGACGTGGTCCAGATTAAGTTTGCACGAGGACGAGGACAAGGAAAACGATGGAGACTCTTTGCCAACGTTTAAATGTGTGTCAGGACAAAATACTAACACATTATGAAAATGATAGTACAGACCTACGTGACCATATAGACTATTGGAAACACATGCGCCTAGAATGTGCTATTTATTACAAGGCCAGAGAAATGGGATTTAAACATATTAACCACCAGGTGGTGCCAACACTGGCTGTATCAAAGAATAAAGCATTACAAGCAATTGAACTGCAACTAACGTTAGAAACAATATATAACTCACAATATAGTAATGAAAAGTGGACATTACAAGACGTTAGCCTTGAAGTGTATTTAACTGCACCAACAGGATGTATAAAAAAACATGGATATACAGTGGAAGTGCAGTTTGATGGAGACATATGCAATACAATGCATTATACAAACTGGACACATATATATATTTGTGAAGAAGCATCAGTAACTGTGGTAGAGGGTCAAGTTGACTATTATGGTTTATATTATGTTCATGAAGGAATACGAACATATTTTGTGCAGTTTAAAGATGATGCAGAAAAATATAGTAAAAATAAAGTATGGGAAGTTCATGCGGGTGGTCAGGTAATATTATGTCCTACATCTGTGTTTAGCAGCAACGAAGTATCCTCTCCTGAAATTATTAGGCAGCACTTGGCCAACCACCCCGCCGCGACCCATACCAAAGCCGTCGCCTTGGGCACCGAAGAAACACAGACGACTATCCAGCGACCAAGATCAGAGCCAGACACCGGAAACCCCTGCCACACCACTAAGTTGTTGCACAGAGACTCAGTGGACAGTGCTCCAATCCTCACTGCATTTAACAGCTCACACAAAGGACGGATTAACTGTAATAGTAACACTACACCCATAGTACATTTAAAAGGTGATGCTAATACTTTAAAATGTTTAAGATATAGATTTAAAAAGCATTGTACATTGTATACTGCAGTGTCGTCTACATGGCATTGGACAGGACATAATGTAAAACATAAAAGTGCAATTGTTACACTTACATATGATAGTGAATGGCAACGTGACCAATTTTTGTCTCAAGTTAAAATACCAAAAACTATTACAGTGTCTACTGGATTTATGTCTATATGACAAATCTTGATACTGCATCCACAACATTACTGGCGTGCTTTTTGCTTTGCTTTTGTGTGCTTTTGTGTGTCTGCCTATTAATACGTCCGCTGCTTTTGTCTGTGTCTACATACACATCATTAATAATATTGGTATTACTATTGTGGATAACAGCAGCCTCTGCGTTTAGGTGTTTTATTGTATATATTATATTTGTTTATATACCATTATTTTTAATACATACACATGCACGCTTTTTAATTACATAATGTATATGTACATAATGTAATTGTTACATATAATTGTTGTATACCATAACTTACTATTTTTTCTTTTTTATTTTCATATATAATTTTTTTTTTTGTTTGTTTGTTTGTTTTTTAATAAACTGTTATTACTTAACAATGCGACACAAACGTTCTGCAAAACGCACAAAACGTGCATCGGCTACCCAACTTTATAAAACATGCAAACAGGCAGGTACATGTCCACCTGACATTATACCTAAGGTTGAAGGCAAAACTATTGCTGATCAAATATTACAATATGGAAGTATGGGTGTATTTTTTGGTGGGTTAGGAATTGGAACAGGGTCGGGTACAGGCGGACGCACTGGGTATATTCCATTGGGAACAAGGCCTCCCACAGCTACAGATACACTTGCTCCTGTAAGACCCCCTTTAACAGTAGATCCTGTGGGCCCTTCTGATCCTTCTATAGTTTCTTTAGTGGAAGAAACTAGTTTTATTGATGCTGGTGCACCAACATCTGTACCTTCCATTCCCCCAGATGTATCAGGATTTAGTATTACTACTTCAACTGATACCACACCTGCTATATTAGATATTAATAATACTGTTACTACTGTTACTACACATAATAATCCCACTTTCACTGACCCATCTGTATTGCAGCCTCCAACACCTGCAGAAACTGGAGGGCATTTTACACTTTCATCATCCACTATTAGTACACATAATTATGAAGAAATTCCTATGGATACATTTATTGTTAGCACAAACCCTAACACAGTAACTAGTAGCACACCCATACCAGGGTCTCGCCCAGTGGCACGCCTAGGATTATATAGTCGCACAACACAACAGGTTAAAGTTGTAGACCCTGCTTTTGTAACCACTCCCACTAAACTTATTACATATGATAATCCTGCATATGAAGGTATAGATGTGGATAATACATTATATTTTTCTAGTAATGATAATAGTATTAATATAGCTCCAGATCCTGACTTTTTGGATATAGTTGCTTTACATAGGCCAGCATTAACCTCTAGGCGTACTGGCATTAGGTACAGTAGAATTGGTAATAAACAAACACTACGTACTCGTAGTGGAAAATCTATAGGTGCTAAGGTACATTATTATTATGATTTAAGTACTATTGATCCTGCAGAAGAAATAGAATTACAAACTATAACACCTTCTACATATACTACCACTTCACATGCAGCCTCACCTACTTCTATTAATAATGGATTATATGATATTTATGCAGATGACTTTATTACAGATACTTCTACAACCCCGGTACCATCTGTACCCTCTACATCTTTATCAGGTTATATTCCTGCAAATACAACAATTCCTTTTGGTGGTGCATACAATATTCCTTTAGTATCAGGTCCTGATATACCCATTAATATAACTGACCAAGCTCCTTCATTAATTCCTATAGTTCCAGGGTCTCCACAATATACAATTATTGCTGATGCAGGTGACTTTTATTTACATCCTAGTTATTACATGTTACGAAAACGACGTAAACGTTTACCATATTTTTTTTCAGATGTCTCTTTGGCTGCCTAGTGAGGCCACTGTCTACTTGCCTCCTGTCCCAGTATCTAAGGTTGTAAGCACGGATGAATATGTTGCACGCACAAACATATATTATCATGCAGGAACATCCAGACTACTTGCAGTTGGACATCCCTATTTTCCTATTAAAAAACCTAACAATAACAAAATATTAGTTCCTAAAGTATCAGGATTACAATACAGGGTATTTAGAATACATTTACCTGACCCCAATAAGTTTGGTTTTCCTGACACCTCATTTTATAATCCAGATACACAGCGGCTGGTTTGGGCCTGTGTAGGTGTTGAGGTAGGTCGTGGTCAGCCATTAGGTGTGGGCATTAGTGGCCATCCTTTATTAAATAAATTGGATGACACAGAAAATGCTAGTGCTTATGCAGCAAATGCAGGTGTGGATAATAGAGAATGTATATCTATGGATTACAAACAAACACAATTGTGTTTAATTGGTTGCAAACCACCTATAGGGGAACACTGGGGCAAAGGATCCCCATGTACCAATGTTGCAGTAAATCCAGGTGATTGTCCACCATTAGAGTTAATAAACACAGTTATTCAGGATGGTGATATGGTTGATACTGGCTTTGGTGCTATGGACTTTACTACATTACAGGCTAACAAAAGTGAAGTTCCACTGGATATTTGTACATCTATTTGCAAATATCCAGATTATATTAAAATGGTGTCAGAACCATATGGCGACAGCTTATTTTTTTATTTACGAAGGGAACAAATGTTTGTTAGACATTTATTTAATAGGGCTGGTACTGTTGGTGAAAATGTACCAGACGATTTATACATTAAAGGCTCTGGGTCTACTGCAAATTTAGCCAGTTCAAATTATTTTCCTACACCTAGTGGTTCTATGGTTACCTCTGATGCCCAAATATTCAATAAACCTTATTGGTTACAACGAGCACAGGGCCACAATAATGGCATTTGTTGGGGTAACCAACTATTTGTTACTGTTGTTGATACTACACGCAGTACAAATATGTCATTATGTGCTGCCATATCTACTTCAGAAACTACATATAAAAATACTAACTTTAAGGAGTACCTACGACATGGGGAGGAATATGATTTACAGTTTATTTTTCAACTGTGCAAAATAACCTTAACTGCAGACGTTATGACATACATACATTCTATGAATTCCACTATTTTGGAGGACTGGAATTTTGGTCTACAACCTCCCCCAGGAGGCACACTAGAAGATACTTATAGGTTTGTAACATCCCAGGCAATTGCTTGTCAAAAACATACACCTCCAGCACCTAAAGAAGATCCCCTTAAAAAATACACTTTTTGGGAAGTAAATTTAAAGGAAAAGTTTTCTGCAGACCTAGATCAGTTTCCTTTAGGACGCAAATTTTTACTACAAGCAGGATTGAAGGCCAAACCAAAATTTACATTAGGAAAACGAAAAGCTACACCCACCACCTCATCTACCTCTACAACTGCTAAACGCAAAAAACGTAAGCTGTAA"""
-#     assert make_l1_end(l1Result, original_genome, original_genome_length) == new_genome
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def linearize_genome(original_genome, args):
     """
     This function checks for possible reverse complement issue and uses make_l1_end() to
@@ -130,10 +125,10 @@ def linearize_genome(original_genome, args):
     return altered_genome
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 # def test_linearize_genome():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def trans_orf(seq, min_protein_length):
     """
     This functions finds all the open reading frames and translates them
@@ -169,10 +164,10 @@ def trans_orf(seq, min_protein_length):
     return ORFs
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_trans_orf():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def run_blastp(query, subject, outfile, evalue=1e-4):
     """
     This function runs blastp
@@ -205,10 +200,10 @@ def run_blastp(query, subject, outfile, evalue=1e-4):
     return len(open(outfile).read().splitlines())
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_run_blastp():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def blast_main_orfs(genome, args):
     """
     This functions writes the ORFs found from trans_orf() to a fasta file and calls
@@ -235,18 +230,22 @@ def blast_main_orfs(genome, args):
 
     if os.path.isfile(blast_out):
         os.remove(blast_out)
-    try:
-        num_hits = run_blastp(orfs_fa, blast_sub, blast_out)
-        #print('Got {} hits!'.format(num_hits))
-    except Exception as e:
-        die('EXCEPTION: {}'.format(e))
 
+    # This could blow up?
+    num_hits = run_blastp(orfs_fa, blast_sub, blast_out)
+
+    # try:
+    #     num_hits = run_blastp(orfs_fa, blast_sub, blast_out)
+    #     #print('Got {} hits!'.format(num_hits))
+    # except Exception as e:
+    #     die('EXCEPTION: {}'.format(e))
 
     return blast_out, orfs_fa
-# ----------------------------------------------------------------------------------------
+
+# --------------------------------------------------
 #def test_blast_main_orfs():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def identify_main_proteins(genome, args):
     """
     This function uses the blast output and ORF files from blast_main_orfs() to
@@ -316,10 +315,10 @@ def identify_main_proteins(genome, args):
     return found_proteins
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_identify_main_proteins():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def verify_l1(virus):
     """
     This function double checks the start position of L1, uses the motif MxxWxxxxxxYLPP
@@ -369,10 +368,10 @@ def verify_l1(virus):
     return found_proteins
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_verify_l1():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def blast_e5_variants(virus, args):
     """
     This function uses a sequence 200 nucleotides at the end of E2 to 200 nucleotides
@@ -406,10 +405,10 @@ def blast_e5_variants(virus, args):
     return blast_out, orfs_fa, e5_sequence
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_blast_e5_variants():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def identify_e5_variants(virus, args):
     """
     This function searches the linearized genome for possible E5_ALPHA, BETA, DELTA,
@@ -471,10 +470,10 @@ def identify_e5_variants(virus, args):
     return found_proteins
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_identify_e5_variants():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def blast_verify_e6(virus, args):
     """
     This function blasts the found E6 against all E6s in PaVE
@@ -508,10 +507,10 @@ def blast_verify_e6(virus, args):
     return blast_out
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_blast_verify_e6():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def parse_blast_results_verify_e6(virus, args):
     """
     This functions parses the blast output from blast_verify_E6() for
@@ -568,10 +567,10 @@ def parse_blast_results_verify_e6(virus, args):
     return known_E6
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_parse_blast_results_verify_e6():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def align_verify_e6(virus, args):
     """
     This function uses MUSCLE to align the found E6 and the E6s from the blast results
@@ -609,10 +608,10 @@ def align_verify_e6(virus, args):
 
     alignment = AlignIO.read(aligned, 'fasta')
     return alignment
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_align_verify_e6():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def verify_e6(virus, args):
     """
     This function use the alignment object from align_verify_e6() to identify if the
@@ -687,10 +686,10 @@ def verify_e6(virus, args):
     return verified_E6
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_verify_e6():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_urr(virus):
     """
     This function locates the URR in the linearized genome based on the postions of the
@@ -748,10 +747,10 @@ def find_urr(virus):
         ]
 
     return urr
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_find_urr():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def fimo_e1bs(virus, args):
     """
     This function executes fimo on the URR for the E1 Binding Sites
@@ -800,10 +799,10 @@ def fimo_e1bs(virus, args):
         return
 
     return fimo_out
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_fimo_e1bs():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_e1bs(virus, args):
     """
     This function uses the fimo output from fimo_e1bs() along with the URR to find the
@@ -861,10 +860,10 @@ def find_e1bs(virus, args):
     return E1BS
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_find_e1bs():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def fimo_e2bs(virus, args):
     """
     This function executes fimo on the URR for the E2 Binding Sites
@@ -913,10 +912,10 @@ def fimo_e2bs(virus, args):
 
 
     return fimo_out
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_fimo_e2bs():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_e2bs(virus, args):
     """
     This function uses the fimo output from fimo_e2bs() along with the URR to find the
@@ -961,10 +960,10 @@ def find_e2bs(virus, args):
         except KeyError:
             E2BS['E2BS'] = []
     return E2BS
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_find_e2bs():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def blast_splice_acceptor(virus, args):
     """
     This function blasts the query E2 agaisnt all E2s in PaVE to start the process of
@@ -1006,10 +1005,10 @@ def blast_splice_acceptor(virus, args):
     return blast_out
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_blast_splice_acceptor():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def locate_known_splice_acceptor(virus, args):
     """
     This function uses the blast results from blast_splice_acceptor() to find the
@@ -1059,10 +1058,10 @@ def locate_known_splice_acceptor(virus, args):
     return splice_start_known, known_E2
 
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_locate_known_splice_acceptor():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def align_splice_acceptor(virus, args):
     """
     This function aligns the query and the closest E2 using MUSCLE
@@ -1099,10 +1098,10 @@ def align_splice_acceptor(virus, args):
     stdout, stderr = cline()
 
     return aligned
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_align_splice_acceptor():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_splice_acceptor(virus, args):
     """
     This function uses the output from align_splice_acceptor(),
@@ -1145,10 +1144,10 @@ def find_splice_acceptor(virus, args):
 
     startE2_nt = re.search(search_seq, str(genome).lower()).start()
     return startE2_nt
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_find_splice_acceptor():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def blast_spliced_e1_e8(virus,args):
     """
     This function blasts the query E1 against all E1s in PaVE to start the
@@ -1186,10 +1185,10 @@ def blast_spliced_e1_e8(virus,args):
     except Exception as e:
         die('EXCEPTION: {}'.format(e))
     return blast_out
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_blast_spliced_e1_e8():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def locate_known_e1_splice_donor(virus, args):
     """
     This function uses the blast results from blast_spliced_e1_e8() to find the
@@ -1234,10 +1233,10 @@ def locate_known_e1_splice_donor(virus, args):
         E1_stop_known = (E1_stop_genome - known_E1_stop)
         print(E1_stop_known)
     return E1_stop_known, known_E1
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_locate_known_e1_splice_donor():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def align_splice_donor_e1(virus, args):
     """
     This function aligns the query E1 and the closest E1 using MUSCLE
@@ -1273,10 +1272,10 @@ def align_splice_donor_e1(virus, args):
     stdout, stderr = cline()
 
     return aligned
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_align_splice_donor_e1():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_e4(E2, genome, position):
     """
     This function finds the E4, used for stop site for E1^E4, CURRENTLY NOT IN USE
@@ -1312,7 +1311,7 @@ def find_e4(E2, genome, position):
     E4['E4'] = [int(E4_nt_start) + 1, int(E4_nt_end) + 1]
 
     return E4
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_e1_e4(virus,start_E4_nt, args):
     """
     This function uses the output from blast_spliced_e1_e8(),
@@ -1371,10 +1370,10 @@ def find_e1_e4(virus,start_E4_nt, args):
     E1_E4['E1^E4'] = [startE1_nt, stopE1_nt, start_E4_nt + 1, stopE4_nt, E1_E4_seq,
                       E1_E4_trans]
     return E1_E4
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_find_e1_e4():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def locate_known_e8_splice_donor(virus, args):
     """
     This function uses the blast results to find the E8 stops positions of the closest
@@ -1420,10 +1419,10 @@ def locate_known_e8_splice_donor(virus, args):
                              "finding E1^E4 and E8^E2.")
 
     return E8_stop_known, known_E8
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_locate_known_e8_splice_donor():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def align_splice_donor_e8(virus, args):
     """
     This function aligns the unknown E1 and closest E1 blast match
@@ -1454,10 +1453,10 @@ def align_splice_donor_e8(virus, args):
     cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
     stdout, stderr = cline()
     return aligned
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_align_splice_donor_e8():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_e8(virus, args,e8_start):
     """
     This function finds the E8 portion of E8^E2 with in the +1 frame of E1
@@ -1533,10 +1532,10 @@ def find_e8(virus, args,e8_start):
         startE8_nt = startE8List[0] + E1_whole[0]
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
     return startE8_nt, stopE8_nt
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_find_e8():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def find_e8_e2(virus, startE2_nt, args):
     """
     This function uses all the return values from the above E8^E2 functions to create a
@@ -1581,10 +1580,10 @@ def find_e8_e2(virus, startE2_nt, args):
                      "Therfore, the results of E1^E4 and E8^E2 are not displayed")
         E8_E2['E8^E2'] = []
     return E8_E2
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_find_e8_e2():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def to_gff3(virus, for_user_dir):
     """
     This function creates a General Feature Format file
@@ -1645,10 +1644,10 @@ def to_gff3(virus, for_user_dir):
                                                        dict[protein][0],
                                                        dict[protein][1]))
     return
-#-----------------------------------------------------------------------------------------
+#---------------------------------------------------
 #def test_to_gff3():
 
-#-----------------------------------------------------------------------------------------
+#---------------------------------------------------
 def to_graphic(virus, for_user_dir):
     """
     This functions creates a graph of the found annotations within the genome
@@ -1794,10 +1793,10 @@ def to_graphic(virus, for_user_dir):
         plt.close()
 
     return
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_to_graphic():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def to_csv(virus, for_user_dir):
     """
     This function creates a comma seperated values file
@@ -1897,10 +1896,10 @@ def to_csv(virus, for_user_dir):
                     virus_copy[value][3]
                 ]])
     return
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_to_csv():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def to_genbank(virus, for_user_dir):
     """
     This functions utilizes biopython to create a GenBank formatted output file
@@ -1971,7 +1970,7 @@ def to_genbank(virus, for_user_dir):
     output_file = open(gb_out, 'w')
     SeqIO.write(record, output_file, 'genbank')
     return
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def to_results(virus):
     """
 
@@ -2027,7 +2026,7 @@ def to_results(virus):
                 out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
                 out_file.write("{}\n".format(virus_copy[protein][2]))
     return
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def print_genome_info(virus):
     """
     This function prints all the found annotations
@@ -2091,10 +2090,10 @@ def print_genome_info(virus):
                         name, virus[name][3][:-1]))
     print("All annotations displayed above.\n")
     return
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_print_genome_info():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def validate_args(args):
     """
     Validates command line arguments
@@ -2130,10 +2129,10 @@ def validate_args(args):
         'for_user_dir': for_user_dir,
         'program_files_dir': program_dir
     }
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_validate_args():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def puma_output(virus, args):
     """
     This functions calls all the functions that are related to creating the output files
@@ -2153,10 +2152,10 @@ def puma_output(virus, args):
     to_genbank(virus, args['for_user_dir'])
     #to_results(virus)
     return
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 #def test_puma_output():
 
-# ----------------------------------------------------------------------------------------
+# --------------------------------------------------
 def run(args):
     """main"""
     virus = {}
@@ -2208,6 +2207,7 @@ def run(args):
                              "E1^E4 and E8^E2")
     puma_output(virus,args)
     return 1
-# ----------------------------------------------------------------------------------------
+
+# --------------------------------------------------
 # def test_run():
 #
