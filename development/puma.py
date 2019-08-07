@@ -14,13 +14,14 @@ import time
 import operator
 import argparse
 import sys
-import warnings
 import random
+import warnings
 import itertools
 import shutil
 import logging
 import numpy as np
 import pandas as pd
+from collections import Counter
 from Bio import SeqIO
 from Bio import GenBank
 from Bio import AlignIO
@@ -39,12 +40,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 from subprocess import getstatusoutput
 from distutils.spawn import find_executable
 from pprint import pprint as pp
-from dire import die
-
-
 
 # --------------------------------------------------
-def make_l1_end(l1Result, original_genome, original_genome_length):
+def make_l1_end(l1Result, original_genome):
     """
     This function makes the L1 stop postion the last nucleotide of the genome and L1
     stop +1 the start of the genome
@@ -57,7 +55,7 @@ def make_l1_end(l1Result, original_genome, original_genome_length):
     start = l1Result[0]
     stop = l1Result[1]
     new_genome = ''
-
+    original_genome_length = len(original_genome)
     #When gene wraps around
     if start < original_genome_length and stop > original_genome_length:
         sequence = original_genome[original_genome_length + 1:stop]
@@ -78,10 +76,7 @@ def make_l1_end(l1Result, original_genome, original_genome_length):
     # else?
     elif stop == original_genome_length:
         new_genome = original_genome
-
     return new_genome
-
-
 # --------------------------------------------------
 def linearize_genome(original_genome, args):
     """
@@ -113,9 +108,7 @@ def linearize_genome(original_genome, args):
             extended_genome = reverse_complement_genome
         elif l1_result_extended[0] == 'RC?':
             raise Exception("PuMA cannot find an L1 protein")
-    altered_genome = make_l1_end(l1_result_extended, original_genome,
-                                 orignal_genome_len)
-
+    altered_genome = make_l1_end(l1_result_extended, original_genome)
     altered_genome_len = len(altered_genome)
     if altered_genome_len != orignal_genome_len:
         raise Exception(
@@ -123,11 +116,6 @@ def linearize_genome(original_genome, args):
             "genome")
 
     return altered_genome
-
-
-# --------------------------------------------------
-# def test_linearize_genome():
-
 # --------------------------------------------------
 def trans_orf(seq, min_protein_length):
     """
@@ -139,10 +127,8 @@ def trans_orf(seq, min_protein_length):
     :return: a dictionary where the key is the ORF and the value is the start of the
     ORF in the genome
     """
-
     # 1 == mammal or summat
     trans_table = 1
-
     ORFs = {}
     has_m = re.compile('M')
     for frame in range(3):
@@ -160,15 +146,9 @@ def trans_orf(seq, min_protein_length):
                 if has_m.search(aa_seq):
                     ORFs[aa_seq] = start
             aa_start = aa_end + 1
-
     return ORFs
-
-
 # --------------------------------------------------
-#def test_trans_orf():
-
-# --------------------------------------------------
-def run_blastp(query, subject, outfile, evalue=1e-4):
+def run_blastp(query, subject, outfile, evalue=1e-5):
     """
     This function runs blastp
 
@@ -184,12 +164,10 @@ def run_blastp(query, subject, outfile, evalue=1e-4):
                  evalue=evalue,
                  outfmt=6,
                  out=outfile)
-
-    #print(cmd)
     stdout, stderr = cmd()
 
-    #if stderr:
-    #    logging.warn("STDERR = ", stderr)
+    if stderr:
+        logging.warning("STDERR = ", stderr)
 
     if not os.path.isfile(outfile):
         raise Exception('No BLAST output')
@@ -198,10 +176,6 @@ def run_blastp(query, subject, outfile, evalue=1e-4):
         return 0
 
     return len(open(outfile).read().splitlines())
-
-
-# --------------------------------------------------
-#def test_run_blastp():
 
 # --------------------------------------------------
 def blast_main_orfs(genome, args):
@@ -230,21 +204,8 @@ def blast_main_orfs(genome, args):
 
     if os.path.isfile(blast_out):
         os.remove(blast_out)
-
-    # This could blow up?
     num_hits = run_blastp(orfs_fa, blast_sub, blast_out)
-
-    # try:
-    #     num_hits = run_blastp(orfs_fa, blast_sub, blast_out)
-    #     #print('Got {} hits!'.format(num_hits))
-    # except Exception as e:
-    #     die('EXCEPTION: {}'.format(e))
-
     return blast_out, orfs_fa
-
-# --------------------------------------------------
-#def test_blast_main_orfs():
-
 # --------------------------------------------------
 def identify_main_proteins(genome, args):
     """
@@ -285,11 +246,6 @@ def identify_main_proteins(genome, args):
     for seq in protein_seq:
         for start in protein_start:
             if seq == start:
-                # if seq == 'L1':
-                #     found_proteins.update(
-                #         identify_l1(genome, protein_seq[seq],
-                #                     protein_start[start], found_proteins))
-                # else:
                 try:
                     M = re.search('M', protein_seq[seq])
                     real_start = protein_start[start] + M.start(
@@ -309,15 +265,8 @@ def identify_main_proteins(genome, args):
                         ]
                 except AttributeError:
                     pass
-    #pp(found_proteins['L1'])
     found_proteins = verify_l1(found_proteins)
-
     return found_proteins
-
-
-# --------------------------------------------------
-#def test_identify_main_proteins():
-
 # --------------------------------------------------
 def verify_l1(virus):
     """
@@ -366,11 +315,6 @@ def verify_l1(virus):
                 Seq(str(L1_post)).translate()
             ]
     return found_proteins
-
-
-# --------------------------------------------------
-#def test_verify_l1():
-
 # --------------------------------------------------
 def blast_e5_variants(virus, args):
     """
@@ -396,18 +340,9 @@ def blast_e5_variants(virus, args):
     blast_out = os.path.join(out_dir, 'blast_results_E5.tab')
     if os.path.isfile(blast_out):
         os.remove(blast_out)
-    try:
-        num_hits = run_blastp(orfs_fa, blast_sub, blast_out, evalue=2)
-        #print('Got {} hits!'.format(num_hits))
-    except Exception as e:
-        die('EXCEPTION: {}'.format(e))
 
+    num_hits = run_blastp(orfs_fa, blast_sub, blast_out, evalue=2)
     return blast_out, orfs_fa, e5_sequence
-
-
-# --------------------------------------------------
-#def test_blast_e5_variants():
-
 # --------------------------------------------------
 def identify_e5_variants(virus, args):
     """
@@ -421,7 +356,6 @@ def identify_e5_variants(virus, args):
     """
     protein_seq = {}
     found_proteins = {}
-    combined = {}
     blast_out , orfs_fa, e5_sequence = blast_e5_variants(virus,args)
     hdrs = ('qseqid sseqid pident length mismatch gapopen qstart '
             'qend sstart send evalue bitscore').split()
@@ -429,7 +363,13 @@ def identify_e5_variants(virus, args):
     evalue = 1e-1
     wanted = df[df.apply(lambda x: '_' in x['sseqid'] and x['evalue'] < evalue,
                          axis=1)]
-
+    c = Counter(wanted['qseqid'])
+    for qseqid, count in c.items():
+        if count > 1:
+            best = sorted(wanted[wanted['qseqid'] == qseqid]['evalue'])[0]
+            indexes = wanted.index[(wanted['qseqid'] == qseqid)
+                                   & (wanted['evalue'] > best)].tolist()
+            wanted = wanted.drop(indexes)
     if len(wanted) < 1:
         return found_proteins
     protein_start = dict(zip(wanted['sseqid'], wanted['qseqid']))
@@ -468,11 +408,6 @@ def identify_e5_variants(virus, args):
         if len(found_proteins[e5][3]) < 40:
             del found_proteins[e5]
     return found_proteins
-
-
-# --------------------------------------------------
-#def test_identify_e5_variants():
-
 # --------------------------------------------------
 def blast_verify_e6(virus, args):
     """
@@ -499,17 +434,8 @@ def blast_verify_e6(virus, args):
     with open(query_file, 'a') as query:
         query.write('>{}\n'.format(ID))
         query.write(E6_trans)
-    try:
-        num_hits = run_blastp(query_file, blast_subject, blast_out)
-        # print('Got {} hits!'.format(num_hits))
-    except Exception as e:
-        die('EXCEPTION: {}'.format(e))
+    num_hits = run_blastp(query_file, blast_subject, blast_out)
     return blast_out
-
-
-# --------------------------------------------------
-#def test_blast_verify_e6():
-
 # --------------------------------------------------
 def parse_blast_results_verify_e6(virus, args):
     """
@@ -552,24 +478,16 @@ def parse_blast_results_verify_e6(virus, args):
     else:
         blast_options = blast_options[0:10]
     known_E6 = {}  # Stores a dictionary of the 10 closest blast results
-
     csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
-
     with open(csv_database, 'r') as csvfile:
         read = csv.DictReader(csvfile,
                               fieldnames=[
                                   'accession', 'gene', 'positions', 'seq',
-                                  'translated seq'
-                              ])
+                                  'translated seq'])
         for row in read:
             if row['accession'] in blast_options and row['gene'] == 'E6':
                 known_E6[row['accession']] = str(row['translated seq'])
     return known_E6
-
-
-# --------------------------------------------------
-#def test_parse_blast_results_verify_e6():
-
 # --------------------------------------------------
 def align_verify_e6(virus, args):
     """
@@ -608,9 +526,6 @@ def align_verify_e6(virus, args):
 
     alignment = AlignIO.read(aligned, 'fasta')
     return alignment
-# --------------------------------------------------
-#def test_align_verify_e6():
-
 # --------------------------------------------------
 def verify_e6(virus, args):
     """
@@ -653,11 +568,9 @@ def verify_e6(virus, args):
                               conserved.items()))
     num_of_dashes = seqs_at_max[0][0]
     prefix = seq_by_id['unknown'][0:num_of_dashes]
-
     if len(prefix) * '-' == prefix:
         actual_start = 0
     elif prefix.count('-') == 0:
-        #print('E6 = ', seq_by_id['unknown'][num_of_dashes:])
         actual_start = len(prefix) * 3
     else:
         no_dashes = len(prefix.replace('-', ''))
@@ -680,15 +593,8 @@ def verify_e6(virus, args):
     verified_E6[ID] = [
         E6_whole[0] + actual_start, E6_whole[1],
         str(new_seq).lower(),
-        Seq(str(new_seq)).translate()
-    ]
-
+        Seq(str(new_seq)).translate()]
     return verified_E6
-
-
-# --------------------------------------------------
-#def test_verify_e6():
-
 # --------------------------------------------------
 def find_urr(virus):
     """
@@ -716,10 +622,7 @@ def find_urr(virus):
             urr_start = blasted[protein][1]
         else:
             start_stop.append(blasted[protein][0])
-
     start_stop = sorted(start_stop)
-    #print("start_stop:{}".format(start_stop))
-
     for numbers in start_stop:
         if numbers == urr_start:
             if numbers == start_stop[-1]:
@@ -729,7 +632,6 @@ def find_urr(virus):
                 urr_stop = start_stop[position + 1]
     urr_start = int(urr_start)
     urr_stop = int(urr_stop) - 1
-
     if urr_start == altered_genome_len:
         urr_start = 1
     if urr_stop == 0:
@@ -743,13 +645,8 @@ def find_urr(virus):
         urr['URR'] = [
             int(urr_start),
             int(genomelen), 1,
-            int(urr_stop), urr_found
-        ]
-
+            int(urr_stop), urr_found]
     return urr
-# --------------------------------------------------
-#def test_find_urr():
-
 # --------------------------------------------------
 def fimo_e1bs(virus, args):
     """
@@ -797,11 +694,7 @@ def fimo_e1bs(virus, args):
     if not os.path.isfile(fimo_out):
         logging.warning('Failed to create fimo out "{}"'.format(fimo_out))
         return
-
     return fimo_out
-# --------------------------------------------------
-#def test_fimo_e1bs():
-
 # --------------------------------------------------
 def find_e1bs(virus, args):
     """
@@ -815,7 +708,6 @@ def find_e1bs(virus, args):
     stop
     positions and nucleotide seq
     """
-
     genome = virus['genome']
     genome_length = len(genome)
     E1BS = {}  # Storing E1BS
@@ -828,15 +720,11 @@ def find_e1bs(virus, args):
             start = row['start']
             if not start is None:
                 start_list_urr.append(start)
-
     start_urr = int(start_list_urr[0])
     genome_start = (start_urr + virus['URR'][0])
-
     if genome_start > genome_length:
         genome_start = genome_start - genome_length
-
     genome_stop = genome_start + 19
-
     if genome_stop > genome_length:
         genome_stop = genome_stop - genome_length
         sequence = str(genome[int(genome_start) - 1:] +
@@ -844,25 +732,17 @@ def find_e1bs(virus, args):
         E1BS['E1BS'] = [
             int(genome_start)-1,
             int(genome_length), 1,
-            int(genome_stop), sequence
-        ]
-
+            int(genome_stop), sequence]
     else:
         if genome_start == 1:
             sequence = str(genome[-1]).lower() + str(
                 genome[int(genome_start - 1):int(genome_stop)]).lower()
             E1BS['E1BS'] = [int(genome_start)-1, int(genome_stop), sequence]
-
         else:
             sequence = str(genome[int(genome_start -
                                       1):int(genome_stop)]).lower()
             E1BS['E1BS'] = [int(genome_start)-1, int(genome_stop), sequence]
     return E1BS
-
-
-# --------------------------------------------------
-#def test_find_e1bs():
-
 # --------------------------------------------------
 def fimo_e2bs(virus, args):
     """
@@ -900,8 +780,6 @@ def fimo_e2bs(virus, args):
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-4 {} {}'
     cline = (fimo_cmd.format(fimo_exe, fimo_dir, motif, tmp))
 
-    # os.system(str(cline))
-
     rv, out = getstatusoutput(str(cline))
     if rv != 0:
         raise Exception('Failed to run fimo for E2BS: {}'.format(out))
@@ -909,12 +787,7 @@ def fimo_e2bs(virus, args):
     if not os.path.isfile(fimo_out):
         logging.critical('Failed to create fimo out "{}"'.format(fimo_out))
         return
-
-
     return fimo_out
-# --------------------------------------------------
-#def test_fimo_e2bs():
-
 # --------------------------------------------------
 def find_e2bs(virus, args):
     """
@@ -956,13 +829,9 @@ def find_e2bs(virus, args):
                     start_list_genome.append(genome_start - 1)
 
             E2BS['E2BS'] = start_list_genome
-            #print("E2BS:{}".format(E2BS))
         except KeyError:
             E2BS['E2BS'] = []
     return E2BS
-# --------------------------------------------------
-#def test_find_e2bs():
-
 # --------------------------------------------------
 def blast_splice_acceptor(virus, args):
     """
@@ -995,19 +864,8 @@ def blast_splice_acceptor(virus, args):
     with open(query_file, 'a') as query:
         query.write('>{}\n'.format(ID))
         query.write(E2_trans)
-
-    try:
-        num_hits = run_blastp(query_file, blast_subject, blast_out)
-        # print('Got {} hits!'.format(num_hits))
-    except Exception as e:
-        die('EXCEPTION: {}'.format(e))
-
+    num_hits = run_blastp(query_file, blast_subject, blast_out)
     return blast_out
-
-
-# --------------------------------------------------
-#def test_blast_splice_acceptor():
-
 # --------------------------------------------------
 def locate_known_splice_acceptor(virus, args):
     """
@@ -1053,14 +911,9 @@ def locate_known_splice_acceptor(virus, args):
         splice_start_known = (splice_start_genome - known_E2_start)
     except UnboundLocalError:
         print('Query does not have E1^E4 or E8^E2')
-        logging.info("Strong Possibility that there is not an E1^E4 or E8^E2")
-        # logging?
+        logging.info("Strong Possibility that there is not an E1^E4 or E8^E2 because "
+                     "closest blast match does not have either.")
     return splice_start_known, known_E2
-
-
-# --------------------------------------------------
-#def test_locate_known_splice_acceptor():
-
 # --------------------------------------------------
 def align_splice_acceptor(virus, args):
     """
@@ -1099,9 +952,6 @@ def align_splice_acceptor(virus, args):
 
     return aligned
 # --------------------------------------------------
-#def test_align_splice_acceptor():
-
-# --------------------------------------------------
 def find_splice_acceptor(virus, args):
     """
     This function uses the output from align_splice_acceptor(),
@@ -1125,28 +975,20 @@ def find_splice_acceptor(virus, args):
 
     unknown_seq = str(align_seq[0]).lower()
     known_seq = str(align_seq[1]).lower()
-
     j = 0
     aligned_splice_start = 0
-
     for position in known_seq:
         aligned_splice_start = aligned_splice_start + 1
         if position.lower() in ['a', 'c', 't', 'g']:
             j = j + 1
             if j == splice_start_known:
                 break
-
     aligned_starts.append(aligned_splice_start)
     aligned_splice_start = aligned_starts[-1]
-
     search_seq = unknown_seq[aligned_splice_start:aligned_splice_start +
                                                   50].replace('-', '')
-
     startE2_nt = re.search(search_seq, str(genome).lower()).start()
     return startE2_nt
-# --------------------------------------------------
-#def test_find_splice_acceptor():
-
 # --------------------------------------------------
 def blast_spliced_e1_e8(virus,args):
     """
@@ -1162,32 +1004,19 @@ def blast_spliced_e1_e8(virus,args):
     ID = virus['accession']
     out_dir = args['program_files_dir']
     data_dir = args['data_dir']
-
     blastE1E8_dir = os.path.join(out_dir, 'blastE1E8')
     if not os.path.isdir(blastE1E8_dir):
         os.makedirs(blastE1E8_dir)
-
     blast_subject = os.path.join(data_dir, 'E1E8_blast.fa')
     blast_out = os.path.join(blastE1E8_dir, 'blast_result.tab')
-
     if os.path.isfile(blast_out):
         os.remove(blast_out)
-
     query_file = os.path.join(blastE1E8_dir, 'query.fa')
-
     with open(query_file, 'a') as query:
         query.write('>{}\n'.format(ID))
         query.write(E1_trans)
-
-    try:
-        num_hits = run_blastp(query_file, blast_subject, blast_out)
-        #print('Got {} hits!'.format(num_hits))
-    except Exception as e:
-        die('EXCEPTION: {}'.format(e))
+    num_hits = run_blastp(query_file, blast_subject, blast_out)
     return blast_out
-# --------------------------------------------------
-#def test_blast_spliced_e1_e8():
-
 # --------------------------------------------------
 def locate_known_e1_splice_donor(virus, args):
     """
@@ -1209,12 +1038,10 @@ def locate_known_e1_splice_donor(virus, args):
         for row in blast_result:
             blast_options.append(row[1])
     blast_options = blast_options[0:1]
-    splice_sites = []
     for options in blast_options:
         query = options
         known_E1 = {}
         csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
-
         with open(csv_database, 'r') as csvfile:
             read = csv.DictReader(csvfile,
                                   ('accession', 'gene', 'positions', 'seq'))
@@ -1233,8 +1060,6 @@ def locate_known_e1_splice_donor(virus, args):
         E1_stop_known = (E1_stop_genome - known_E1_stop)
         print(E1_stop_known)
     return E1_stop_known, known_E1
-# --------------------------------------------------
-#def test_locate_known_e1_splice_donor():
 
 # --------------------------------------------------
 def align_splice_donor_e1(virus, args):
@@ -1272,9 +1097,6 @@ def align_splice_donor_e1(virus, args):
     stdout, stderr = cline()
 
     return aligned
-# --------------------------------------------------
-#def test_align_splice_donor_e1():
-
 # --------------------------------------------------
 def find_e4(E2, genome, position):
     """
@@ -1341,27 +1163,16 @@ def find_e1_e4(virus,start_E4_nt, args):
 
     for position in known_seq:
         aligned_E1_stop = aligned_E1_stop + 1
-        # print(aligned_E8_stop)
         if position.lower() in ['a', 'c', 't', 'g']:
             j = j + 1
             if j == E1_stop_known:
                 break
     E1_stop.append(aligned_E1_stop)
-    #print("E1_Stop Options:{}".format(E1_stop))
     aligned_E1_stop = E1_stop[-1]
     search_seq = unknown_seq[aligned_E1_stop:aligned_E1_stop + 50].replace(
         '-', '')
     stopE1_nt = (re.search(search_seq, str(genome).lower()).start()) + 1
     startE1_nt = virus['E1'][0]
-
-    # whole_E4 = find_e4(virus['E2'][2], genome, -1)
-    # #For when it may not always be the longest nonexistent E4, checks to make sure that
-    # #  the splice acceptor site is within the found E4
-    # position = -1
-    # while ((start_E4_nt > whole_E4['E4'][1])):
-    #     whole_E4 = find_e4(virus['E2'][2], genome, position)
-    #     position = position - 1
-    #stopE4_nt = whole_E4['E4'][1] - 1
     e4_part = Seq(genome[start_E4_nt +2:]).translate().split("*")[0]
     stopE4_nt = (start_E4_nt + ((len(e4_part) + 1) * 3)) + 2
     E1_E4_seq = str(genome[startE1_nt - 1:stopE1_nt] +
@@ -1370,9 +1181,6 @@ def find_e1_e4(virus,start_E4_nt, args):
     E1_E4['E1^E4'] = [startE1_nt, stopE1_nt, start_E4_nt + 1, stopE4_nt, E1_E4_seq,
                       E1_E4_trans]
     return E1_E4
-# --------------------------------------------------
-#def test_find_e1_e4():
-
 # --------------------------------------------------
 def locate_known_e8_splice_donor(virus, args):
     """
@@ -1393,8 +1201,6 @@ def locate_known_e8_splice_donor(virus, args):
             blast_options.append(row[1])
     blast_options = blast_options[0:1]
     E8_stop_known = -1
-    splice_sites = []
-    E8_stop = []
     for options in blast_options:
         query = options
         known_E8 = {}
@@ -1417,11 +1223,7 @@ def locate_known_e8_splice_donor(virus, args):
             except UnboundLocalError:
                 logging.info("There was not a blast match for E1 in the process of "
                              "finding E1^E4 and E8^E2.")
-
     return E8_stop_known, known_E8
-# --------------------------------------------------
-#def test_locate_known_e8_splice_donor():
-
 # --------------------------------------------------
 def align_splice_donor_e8(virus, args):
     """
@@ -1454,9 +1256,6 @@ def align_splice_donor_e8(virus, args):
     stdout, stderr = cline()
     return aligned
 # --------------------------------------------------
-#def test_align_splice_donor_e8():
-
-# --------------------------------------------------
 def find_e8(virus, args,e8_start):
     """
     This function finds the E8 portion of E8^E2 with in the +1 frame of E1
@@ -1466,8 +1265,6 @@ def find_e8(virus, args,e8_start):
     :param e8_start: corresponds to the index of the E8 start postion list
     :return: start and stop positions of the found E8 portion of E8^E2
     """
-
-
     E8_stop_known, _ = locate_known_e8_splice_donor(virus, args)
     if E8_stop_known < 0:
         return -1, -1
@@ -1487,7 +1284,6 @@ def find_e8(virus, args,e8_start):
     known_seq = str(align_seq[1]).lower()
     for position in known_seq:
         aligned_E8_stop = aligned_E8_stop + 1
-        # print(aligned_E8_stop)
         if position.lower() in ['a', 'c', 't', 'g']:
             j = j + 1
             if j == E8_stop_known:
@@ -1533,9 +1329,6 @@ def find_e8(virus, args,e8_start):
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
     return startE8_nt, stopE8_nt
 # --------------------------------------------------
-#def test_find_e8():
-
-# --------------------------------------------------
 def find_e8_e2(virus, startE2_nt, args):
     """
     This function uses all the return values from the above E8^E2 functions to create a
@@ -1580,9 +1373,6 @@ def find_e8_e2(virus, startE2_nt, args):
                      "Therfore, the results of E1^E4 and E8^E2 are not displayed")
         E8_E2['E8^E2'] = []
     return E8_E2
-# --------------------------------------------------
-#def test_find_e8_e2():
-
 # --------------------------------------------------
 def to_gff3(virus, for_user_dir):
     """
@@ -1645,9 +1435,6 @@ def to_gff3(virus, for_user_dir):
                                                        dict[protein][1]))
     return
 #---------------------------------------------------
-#def test_to_gff3():
-
-#---------------------------------------------------
 def to_graphic(virus, for_user_dir):
     """
     This functions creates a graph of the found annotations within the genome
@@ -1676,15 +1463,10 @@ def to_graphic(virus, for_user_dir):
                      'cyan',
                      'magenta',
                      'indigo',
-                     'pink'
-                    ]
+                     'pink']
     fig, ax = plt.subplots()
     with PdfPages(pdf_out) as pdf:
         for gene in virus_copy:
-            # while color in used_colors:
-            #     print("HERE")
-            #     color = random.choice(color_choices)
-            # used_colors.append(color)
             if gene == 'name' or gene == 'accession' or gene == 'genome':
                 pass
             else:
@@ -1794,9 +1576,6 @@ def to_graphic(virus, for_user_dir):
 
     return
 # --------------------------------------------------
-#def test_to_graphic():
-
-# --------------------------------------------------
 def to_csv(virus, for_user_dir):
     """
     This function creates a comma seperated values file
@@ -1897,9 +1676,6 @@ def to_csv(virus, for_user_dir):
                 ]])
     return
 # --------------------------------------------------
-#def test_to_csv():
-
-# --------------------------------------------------
 def to_genbank(virus, for_user_dir):
     """
     This functions utilizes biopython to create a GenBank formatted output file
@@ -1911,11 +1687,17 @@ def to_genbank(virus, for_user_dir):
     :return: nothing
     """
     ID = virus['accession']
+    name = virus['name']
+    if len(name) < 1:
+        name = ID
+        if len(name) > 15:
+            name = name[0:15]
+
     sequence_string = virus['genome']
     sequence_object = Seq(sequence_string, IUPAC.unambiguous_dna)
     record = SeqRecord(sequence_object,
                        id=ID,  # random accession number
-                       name=ID,  # replace this with a sensible name
+                       name=name,  # replace this with a sensible name
                        description='GenBank file for %s generated by PuMA' % (virus[
                            'name']))
     for gene in virus:
@@ -2091,9 +1873,6 @@ def print_genome_info(virus):
     print("All annotations displayed above.\n")
     return
 # --------------------------------------------------
-#def test_print_genome_info():
-
-# --------------------------------------------------
 def validate_args(args):
     """
     Validates command line arguments
@@ -2103,8 +1882,6 @@ def validate_args(args):
     line values
     """
 
-    #sites = args['sites'] if 'sites' in args else ['ALL']
-    #sites = args.get('sites') or []
     input_file = args.get('input')
     out_dir = args.get('out_dir')
     data_dir = args.get('data_dir')
@@ -2130,9 +1907,6 @@ def validate_args(args):
         'program_files_dir': program_dir
     }
 # --------------------------------------------------
-#def test_validate_args():
-
-# --------------------------------------------------
 def puma_output(virus, args):
     """
     This functions calls all the functions that are related to creating the output files
@@ -2144,17 +1918,13 @@ def puma_output(virus, args):
     :return: nothing
     """
 
-    print_genome_info(virus)
+    #print_genome_info(virus)
     to_graphic(virus, args['for_user_dir'])
-        #to_pdf(virus, args['for_user_dir'])
     to_csv(virus, args['for_user_dir'])
     to_gff3(virus, args['for_user_dir'])
     to_genbank(virus, args['for_user_dir'])
     #to_results(virus)
     return
-# --------------------------------------------------
-#def test_puma_output():
-
 # --------------------------------------------------
 def run(args):
     """main"""
@@ -2166,16 +1936,14 @@ def run(args):
         original_genome = seq_record.seq
         name = seq_record.description.split(",")[0]
         ID = seq_record.name
-    full_name = name.split("|")[1]
-    ID = name.split("|")[0]
-    virus['name'] = full_name #name
+    # full_name = name.split("|")[1]
+    # ID = name.split("|")[0]
+    virus['name'] = name #full_name
     virus['accession'] = ID
     print("\n" + ID + "\n")
     altered_genome = linearize_genome(original_genome, args)
     virus['genome'] = str(altered_genome).lower()
     virus.update(identify_main_proteins(altered_genome, args))
-    # for key in virus:
-    #     print(key)
     if 'E2' in virus.keys():
         virus.update(identify_e5_variants(virus, args))
     if 'E6' in virus.keys():
@@ -2202,9 +1970,6 @@ def run(args):
                 E1_E4 = find_e1_e4(virus, start_splice_site, args)
                 virus.update(E8_E2)
                 virus.update(E1_E4)
-        else:
-            logging.info("There was a problem finding the splice acceptor for "
-                             "E1^E4 and E8^E2")
     puma_output(virus,args)
     return 1
 
