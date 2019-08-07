@@ -131,6 +131,7 @@ def trans_orf(seq, min_protein_length):
     trans_table = 1
     ORFs = {}
     has_m = re.compile('M')
+    print(type(seq))
     for frame in range(3):
         trans = str(seq[frame:].translate(trans_table))
         trans_len = len(trans)
