@@ -4,7 +4,7 @@ puma run file
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 0.4 7/12/19 removed output options arguments
+PuMA 1.0 release 8/15/19
 """
 
 import argparse
@@ -46,7 +46,7 @@ def get_args():
     parser.add_argument('-f',
                         '--format',
                         metavar='FORMAT',
-                        choices=['fasta', 'genbank'],
+                        choices='fasta',
                         default='fasta',
                         help='File format')
 
