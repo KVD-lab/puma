@@ -687,10 +687,11 @@ def fimo_e1bs(virus, args):
         os.remove(fimo_out)
 
     cline = (fimo_cmd.format(fimo_exe, fimo_dir, background, motif, tmp))
+    print(cline)
 
     rv, out = getstatusoutput(str(cline))
     if rv != 0:
-        raise Exception('Failed to run fimo for E1BS')
+        raise Exception(f'Failed to run fimo for E1BS: {out}')
 
     if not os.path.isfile(fimo_out):
         logging.warning('Failed to create fimo out "{}"'.format(fimo_out))
@@ -1683,19 +1684,13 @@ def to_genbank(virus, for_user_dir):
     :return: nothing
     """
     ID = virus['accession']
-    name = virus['name']
-    if len(name) < 1:
-        name = ID
-        if len(name) > 15:
-            name = name[0:15]
-            name = name.replace(" ","_")
-    else:
-        if len(name) > 15:
-            name = name[0:15]
-            name = name.replace(" ", "_")
-
+    name = virus['name'] if virus['name'] else ID
+    if len(name) > 15:
+        name = name[0:15]
+        name = name.replace(" ","_")
 
     sequence_string = virus['genome']
+    print('GENOME', sequence_string)
     sequence_object = Seq(sequence_string, IUPAC.unambiguous_dna)
     record = SeqRecord(sequence_object,
                        id=ID,  # random accession number
@@ -1731,6 +1726,8 @@ def to_genbank(virus, for_user_dir):
             else:
                 start = virus[gene][0] -1
                 end = virus[gene][1]
+                #print(">>>>", start, end)
+                #print(">>>>", sequence_object[start:end])
                 notes = {"gene": gene, "protein_id": ID + "_" + gene,
                     "translation": sequence_object[start:end].translate()}
                 feature = SeqFeature(FeatureLocation(start=start, end=end), type='CDS',
