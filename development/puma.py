@@ -1690,7 +1690,6 @@ def to_genbank(virus, for_user_dir):
         name = name.replace(" ","_")
 
     sequence_string = virus['genome']
-    print('GENOME', sequence_string)
     sequence_object = Seq(sequence_string, IUPAC.unambiguous_dna)
     record = SeqRecord(sequence_object,
                        id=ID,  # random accession number
@@ -1726,8 +1725,6 @@ def to_genbank(virus, for_user_dir):
             else:
                 start = virus[gene][0] -1
                 end = virus[gene][1]
-                #print(">>>>", start, end)
-                #print(">>>>", sequence_object[start:end])
                 notes = {"gene": gene, "protein_id": ID + "_" + gene,
                     "translation": sequence_object[start:end].translate()}
                 feature = SeqFeature(FeatureLocation(start=start, end=end), type='CDS',
