@@ -1,4 +1,4 @@
-# PuMA Release 0.3-beta 
+# PuMA Release 1.0 
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
 
@@ -10,7 +10,7 @@ Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer
 
 University of Arizona, KVD Lab & Hurwitz Lab
 
-Release 0.3-beta (2/24/19) added graphical output using DnaFeaturesViewer
+Release 1.0 (8/19/19) added genbank formatted output, more robust overall
 
 # Formatting Input FASTA File
     
@@ -18,7 +18,7 @@ Release 0.3-beta (2/24/19) added graphical output using DnaFeaturesViewer
     Sequence
 
 
-Short name is the abbreviation you want for output files (e.g. HPV16)
+Short name is the abbreviation or accession number you want for output files (e.g. HPV16)
 
 Full name is what will be printed to the screen (e.g. Human papillomavirus 16)
 
@@ -31,7 +31,8 @@ Please install the following:
 * NCBI BLAST+ 2.7.x
 * MEME, FIMO (https://meme-suite.org/)
 * MUSCLE (https://www.drive5.com/muscle)
-* DnaFeaturesViewer (https://github.com/Edinburgh-Genome-Foundry/DnaFeaturesViewer)
+* pandas
+* matplotlib
 
 
 
