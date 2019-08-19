@@ -1756,62 +1756,6 @@ def to_genbank(virus, for_user_dir):
     SeqIO.write(record, output_file, 'genbank')
     return
 # --------------------------------------------------
-def to_results(virus):
-    """
-
-    :param virus: dictionary that has all found proteins so far and linearized based on L1
-    genome
-    :return:
-    """
-    virus_copy = {}
-    virus_copy.update(virus)
-    try:
-        del virus_copy['genome']
-        del virus_copy['accession']
-        del virus_copy['E1BS']
-        del virus_copy['E2BS']
-    except KeyError:
-        pass
-    all = virus_copy['name']
-    #short_name = re.search('\(([^)]+)', all).group(1)
-    #virus_copy['name'] = short_name
-
-    results_dir = os.path.join('puma_results')
-
-    results = os.path.join(results_dir, 'puma_results_7_23_19.fa')
-
-    for protein in virus_copy:
-        if protein == 'name':
-            pass
-        elif protein == 'accession':
-            pass
-        elif protein == 'URR':
-            try:
-                if type(virus_copy[protein][3]) == int:
-                    with open(results, 'a') as out_file:
-                        out_file.write(">{}_{}\n".format(
-                            virus_copy['name'], protein))
-                        out_file.write("{}\n".format(virus_copy[protein][4]))
-                else:
-                    with open(results, 'a') as out_file:
-                        out_file.write(">{}_{}\n".format(
-                            virus_copy['name'], protein))
-                        out_file.write("{}\n".format(virus_copy[protein][2]))
-            except IndexError:
-                with open(results, 'a') as out_file:
-                    out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
-                    out_file.write("{}\n".format(virus_copy[protein][2]))
-
-        elif '^' in protein:
-            with open(results, 'a') as out_file:
-                out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
-                out_file.write("{}\n".format(virus_copy[protein][4]))
-        else:
-            with open(results, 'a') as out_file:
-                out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
-                out_file.write("{}\n".format(virus_copy[protein][2]))
-    return
-# --------------------------------------------------
 def print_genome_info(virus):
     """
     This function prints all the found annotations
@@ -1921,12 +1865,11 @@ def puma_output(virus, args):
     :return: nothing
     """
 
-    #print_genome_info(virus)
+    print_genome_info(virus)
     to_graphic(virus, args['for_user_dir'])
     to_csv(virus, args['for_user_dir'])
     to_gff3(virus, args['for_user_dir'])
     to_genbank(virus, args['for_user_dir'])
-    #to_results(virus)
     return
 # --------------------------------------------------
 def run(args):
@@ -1975,7 +1918,3 @@ def run(args):
                 virus.update(E1_E4)
     puma_output(virus,args)
     return 1
-
-# --------------------------------------------------
-# def test_run():
-#
