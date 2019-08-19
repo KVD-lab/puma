@@ -33,3 +33,35 @@ Please install the following:
 * MUSCLE (https://www.drive5.com/muscle)
 * pandas
 * matplotlib
+
+# PuMA Poly Release 0.1 
+
+Polyomavirus genome annotation tool 
+Annoates VP1, VP2, small t and Large T proteins
+
+# Authors
+
+Josh Pace, Ken Younes-Clark, Koenraad Van Doorslaer 
+
+University of Arizona, KVD Lab & Hurwitz Lab
+
+Release 0.1 (7/25/19) output is printed genome information and csv
+
+# Dependencies 
+
+Please install the following:
+
+* Python 3.x
+* Biopython
+* NCBI BLAST+ 2.7.x
+* MUSCLE (https://www.drive5.com/muscle)
+
+# Formatting Input FASTA File
+    
+    >Short name|Full Name
+    Sequence
+
+
+Short name is the abbreviation or accession number you want for output files (e.g. SV40a)
+
+Full name is what will be printed to the screen (e.g. simian virus 40)

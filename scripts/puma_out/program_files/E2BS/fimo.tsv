@@ -1,9 +1,0 @@
-motif_id	motif_alt_id	sequence_name	start	stop	strand	score	p-value	q-value	matched_sequence
-ACCGNWWNCGGT	MEME-1	URR	303	314	+	17.3448	2.03e-07	9.45e-05	accgttatcggt
-ACCGNWWNCGGT	MEME-1	URR	421	432	+	17.1724	5.24e-07	0.000122	accgattgcggt
-ACCGNWWNCGGT	MEME-1	URR	333	344	+	14.7241	7.07e-06	0.0011	accggaggcggt
-ACCGNWWNCGGT	MEME-1	URR	131	142	+	14.1034	1.07e-05	0.00125	accgcacccggt
-
-# FIMO (Find Individual Motif Occurrences): Version 5.0.5 compiled on May 16 2019 at 11:19:45
-# The format of this file is described at http://meme-suite.org/doc/fimo-output-format.html.
-# fimo --oc ./puma_out/program_files/E2BS --norc --verbosity 1 --thresh 1.0E-4 ../data_dir/E2BS_motif_new.txt ./puma_out/program_files/puma_urr.fa

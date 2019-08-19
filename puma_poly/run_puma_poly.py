@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-puma run file
+puma_poly run file
 
-authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
+Authors: Josh Pace, Ken Youens-Clark, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 1.0 release 8/19/19
+PuMA Poly 0.1 7/25/19 
 """
 
 import argparse
@@ -12,7 +12,7 @@ import logging
 import re
 import os
 import sys
-import puma
+import puma_poly
 
 
 # --------------------------------------------------
@@ -30,9 +30,7 @@ def get_args():
     bin_dir = os.path.dirname(args[0])
 
     parser = argparse.ArgumentParser(
-        description='PV genome annotator'
-        'information within a given papillomavirus '
-        'genome.',
+        description='Polyomavirus genome annotator',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-i',
@@ -40,7 +38,7 @@ def get_args():
                         metavar='FILE',
                         type=argparse.FileType('r'),
                         help=('Path to a FASTA-formatted file that '
-                              'contains a Papillomavirus genome.'),
+                              'contains a Polyomavirus genome.'),
                         required=True)
 
     parser.add_argument('-f',
@@ -54,14 +52,14 @@ def get_args():
                         '--data_dir',
                         metavar='DIR',
                         type=str,
-                        default=os.path.join(bin_dir, 'data_dir'),
+                        default=os.path.join(bin_dir, 'data_dir_poly'),
                         help='Directory that has all database files for use')
 
     parser.add_argument('-o',
                         '--out_dir',
                         metavar='DIR',
                         type=str,
-                        default=os.path.join(bin_dir, 'puma_out'),
+                        default=os.path.join(bin_dir, 'puma_poly_out'),
                         help='Output directory')
 
     parser.add_argument('-e',
@@ -86,11 +84,11 @@ def get_args():
                         choices=['debug', 'info', 'warning', 'error', 'critical'],
                         help='Debug level')
 
-    parser.add_argument('-L',
+    parser.add_argument('-l',
                         '--log_file',
                         metavar='FILE',
                         type=str,
-                        default='puma_execution.log',
+                        default='puma_poly_execution.log',
                         help='Debug log file')
 
     args = parser.parse_args()
@@ -120,10 +118,11 @@ def main():
                         filename=log_file,
                         filemode='w')
 
-    puma.run(args)
-    print("PuMA execution complete. Check output files in {}. Also check "
-          "puma_execution.log for potential notes about execution.".format(
+    puma_poly.run(args)
+    print("PuMA Poly execution complete. Check output files in {}. Also check "
+          "puma_poly_execution.log for potential notes about execution.".format(
         for_user_dir))
 # --------------------------------------------------
 if __name__ == '__main__':
     main()
+
