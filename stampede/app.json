@@ -1,6 +1,6 @@
 {
     "name": "puma",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "shortDescription": "Papillomavirus genome annotation tool",
     "longDescription": "",
     "available": true,
@@ -10,7 +10,7 @@
     "defaultMaxRunTime": "12:00:00",
     "defaultNodeCount": 1,
     "defaultQueue": "normal",
-    "deploymentPath": "kyclark/applications/puma-0.1.0/stampede",
+    "deploymentPath": "kyclark/applications/puma-1.0.0/stampede",
     "deploymentSystem": "data.iplantcollaborative.org",
     "executionSystem": "tacc-stampede2-kyclark",
     "executionType": "HPC",
