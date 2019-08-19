@@ -10,7 +10,7 @@ Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer
 
 University of Arizona, KVD Lab & Hurwitz Lab
 
-Release 1.0 (8/19/19) added genbank formatted output, more robust overall
+Release 1.0 (8/19/19) added genbank formatted output, significantly more robust overall
 
 # Formatting Input FASTA File
     
