@@ -33,7 +33,3 @@ Please install the following:
 * MUSCLE (https://www.drive5.com/muscle)
 * pandas
 * matplotlib
-
-
-
-
