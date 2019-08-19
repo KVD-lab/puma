@@ -36,7 +36,8 @@ Please install the following:
 
 # PuMA Poly Release 0.1 
 
-Polyomavirus genome annotation tool, annoates VP1, VP2, small t and Large T proteins
+Polyomavirus genome annotation tool 
+Annoates VP1, VP2, small t and Large T proteins
 
 # Authors
 
