@@ -34,6 +34,23 @@ Please install the following:
 * pandas
 * matplotlib
 
+# PuMA Poly Release 0.1 
 
+Polyomavirus genome annotation tool, annoates VP1, VP2, small t and Large T proteins
 
+# Authors
 
+Josh Pace, Ken Younes-Clark, Koenraad Van Doorslaer 
+
+University of Arizona, KVD Lab & Hurwitz Lab
+
+Release 0.1 (7/25/19) output is printed genome information and csv
+
+# Dependencies 
+
+Please install the following:
+
+* Python 3.x
+* Biopython
+* NCBI BLAST+ 2.7.x
+* MUSCLE (https://www.drive5.com/muscle)
