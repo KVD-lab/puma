@@ -54,3 +54,13 @@ Please install the following:
 * Biopython
 * NCBI BLAST+ 2.7.x
 * MUSCLE (https://www.drive5.com/muscle)
+
+# Formatting Input FASTA File
+    
+    >Short name|Full Name
+    Sequence
+
+
+Short name is the abbreviation or accession number you want for output files (e.g. SV40a)
+
+Full name is what will be printed to the screen (e.g. simian virus 40)
