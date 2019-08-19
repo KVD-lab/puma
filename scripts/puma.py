@@ -3,7 +3,7 @@ puma library
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 1.0 release 8/15/19
+PuMA 1.0 release 8/19/19
 """
 
 import os
@@ -89,10 +89,9 @@ def linearize_genome(original_genome, args):
 
     orignal_genome_len = len(original_genome)
     extended_genome = original_genome + original_genome[:2000]
-
-    if str(extended_genome).upper().count("N") >= 5:
-        logging.warning("Number of n nucleotides found:{}"
-                        .format(str(extended_genome).upper().count("N")))
+    other_nts = len(re.findall('[^ATCG]', str(original_genome), re.IGNORECASE))
+    logging.warning("Number of non ACTG nucleotides found:{}".format(other_nts))
+    if other_nts >= 5:
         raise Exception("Genome has too many n nucleotides to be annotated")
 
     proteins = identify_main_proteins(extended_genome, args)
@@ -425,7 +424,7 @@ def blast_verify_e6(virus, args):
 
     if not os.path.isdir(verify_E6_dir):
         os.makedirs(verify_E6_dir)
-    blast_subject = os.path.join(data_dir, 'blast_E6_updated.fa')
+    blast_subject = os.path.join(data_dir, 'blast_E6_manual_old.fa') # blast_E6_updated.fa
     blast_out = os.path.join(verify_E6_dir, 'blast_result_E6.tab')
     if os.path.isfile(blast_out):
         os.remove(blast_out)
@@ -677,8 +676,8 @@ def fimo_e1bs(virus, args):
     if not os.path.isdir(fimo_dir):
         os.makedirs(fimo_dir)
 
-    background = os.path.join(data_dir, 'background_model_E1BS_new.txt')
-    motif = os.path.join(data_dir, 'E1BS_motif_new.txt')
+    background = os.path.join(data_dir, 'background_model_E1BS_old.txt')
+    motif = os.path.join(data_dir, 'E1BS_motif_old.txt')
 
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
     fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
@@ -771,7 +770,7 @@ def fimo_e2bs(virus, args):
     if not os.path.isdir(fimo_dir):
         os.makedirs(fimo_dir)
 
-    motif = os.path.join(data_dir, 'E2BS_motif_new.txt')
+    motif = os.path.join(data_dir, 'E2BS_motif_old.txt')
 
     fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
 
@@ -853,7 +852,7 @@ def blast_splice_acceptor(virus, args):
     if not os.path.isdir(splice_acceptor_dir):
         os.makedirs(splice_acceptor_dir)
 
-    blast_subject = os.path.join(data_dir, 'splice_acceptor_blast_new.fa')
+    blast_subject = os.path.join(data_dir, 'splice_acceptor_blast.fa')
     blast_out = os.path.join(splice_acceptor_dir,
                              'blast_result_splice_acceptor.tab')
 
@@ -968,6 +967,7 @@ def find_splice_acceptor(virus, args):
         return -1
     aligned = align_splice_acceptor(virus, args)
     genome = str(virus['genome'])
+    aligned_starts = []
     align_seq = []
     for aln in AlignIO.read(aligned, 'fasta'):
         align_seq.append(aln.seq)
@@ -1364,7 +1364,6 @@ def find_e8_e2(virus, startE2_nt, args):
                              "are not displayed")
                 E8_E2['E8^E2'] = []
     else:
-        print("Splice Acceptor wonky")
         logging.info("Last 20 aa of E8^E2 and E2 do not match. "
                      "The results of E1^E4 and E8^E2 are not displayed")
         E8_E2['E8^E2'] = []
@@ -1696,7 +1695,7 @@ def to_genbank(virus, for_user_dir):
 
 
     sequence_string = virus['genome']
-    sequence_object = Seq(sequence_string, IUPAC.unambiguous_dna)
+    sequence_object = Seq(sequence_string, IUPAC.ambiguous_dna)
     record = SeqRecord(sequence_object,
                        id=ID,  # random accession number
                        name=name,  # replace this with a sensible name
@@ -1729,8 +1728,10 @@ def to_genbank(virus, for_user_dir):
                                      type='misc_feaure', qualifiers=notes)
                 record.features.append(feature)
             else:
+                #print(gene)
                 start = virus[gene][0] -1
                 end = virus[gene][1]
+                #print(sequence_object[start:end])
                 notes = {"gene": gene, "protein_id": ID + "_" + gene,
                     "translation": sequence_object[start:end].translate()}
                 feature = SeqFeature(FeatureLocation(start=start, end=end), type='CDS',
@@ -1753,6 +1754,62 @@ def to_genbank(virus, for_user_dir):
     gb_out = os.path.join(for_user_dir, '{}.gb'.format(virus['accession']))
     output_file = open(gb_out, 'w')
     SeqIO.write(record, output_file, 'genbank')
+    return
+# --------------------------------------------------
+def to_results(virus):
+    """
+
+    :param virus: dictionary that has all found proteins so far and linearized based on L1
+    genome
+    :return:
+    """
+    virus_copy = {}
+    virus_copy.update(virus)
+    try:
+        del virus_copy['genome']
+        del virus_copy['accession']
+        del virus_copy['E1BS']
+        del virus_copy['E2BS']
+    except KeyError:
+        pass
+    all = virus_copy['name']
+    #short_name = re.search('\(([^)]+)', all).group(1)
+    #virus_copy['name'] = short_name
+
+    results_dir = os.path.join('puma_results')
+
+    results = os.path.join(results_dir, 'puma_results_7_23_19.fa')
+
+    for protein in virus_copy:
+        if protein == 'name':
+            pass
+        elif protein == 'accession':
+            pass
+        elif protein == 'URR':
+            try:
+                if type(virus_copy[protein][3]) == int:
+                    with open(results, 'a') as out_file:
+                        out_file.write(">{}_{}\n".format(
+                            virus_copy['name'], protein))
+                        out_file.write("{}\n".format(virus_copy[protein][4]))
+                else:
+                    with open(results, 'a') as out_file:
+                        out_file.write(">{}_{}\n".format(
+                            virus_copy['name'], protein))
+                        out_file.write("{}\n".format(virus_copy[protein][2]))
+            except IndexError:
+                with open(results, 'a') as out_file:
+                    out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
+                    out_file.write("{}\n".format(virus_copy[protein][2]))
+
+        elif '^' in protein:
+            with open(results, 'a') as out_file:
+                out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
+                out_file.write("{}\n".format(virus_copy[protein][4]))
+        else:
+            with open(results, 'a') as out_file:
+                out_file.write(">{}_{}\n".format(virus_copy['name'], protein))
+                out_file.write("{}\n".format(virus_copy[protein][2]))
     return
 # --------------------------------------------------
 def print_genome_info(virus):
@@ -1864,11 +1921,12 @@ def puma_output(virus, args):
     :return: nothing
     """
 
-    print_genome_info(virus)
+    #print_genome_info(virus)
     to_graphic(virus, args['for_user_dir'])
     to_csv(virus, args['for_user_dir'])
     to_gff3(virus, args['for_user_dir'])
     to_genbank(virus, args['for_user_dir'])
+    #to_results(virus)
     return
 # --------------------------------------------------
 def run(args):
@@ -1880,6 +1938,7 @@ def run(args):
     for seq_record in SeqIO.parse(args['input_file'], args['input_format']):
         original_genome = seq_record.seq
         name = seq_record.description
+        ID = seq_record.name
     full_name = name.split("|")[1]
     ID = name.split("|")[0]
     virus['name'] = full_name
