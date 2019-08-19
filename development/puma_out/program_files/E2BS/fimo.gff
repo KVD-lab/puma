@@ -1,0 +1,4 @@
+##gff-version 3
+URR	fimo	nucleotide_motif	265	276	61.4	+	.	Name=ACCGNWWNCGGT_URR+;Alias=MEME-1;ID=ACCGNWWNCGGT-MEME-1-1-URR;pvalue=7.2e-07;qvalue= 0.000275;sequence=accgtttgcggt;
+URR	fimo	nucleotide_motif	358	369	54.1	+	.	Name=ACCGNWWNCGGT_URR+;Alias=MEME-1;ID=ACCGNWWNCGGT-MEME-1-2-URR;pvalue=3.9e-06;qvalue= 0.000744;sequence=accgggaacggt;
+URR	fimo	nucleotide_motif	281	292	45.4	+	.	Name=ACCGNWWNCGGT_URR+;Alias=MEME-1;ID=ACCGNWWNCGGT-MEME-1-3-URR;pvalue=2.85e-05;qvalue= 0.00362;sequence=accgaaagaggt;
