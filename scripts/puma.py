@@ -424,7 +424,7 @@ def blast_verify_e6(virus, args):
 
     if not os.path.isdir(verify_E6_dir):
         os.makedirs(verify_E6_dir)
-    blast_subject = os.path.join(data_dir, 'blast_E6_manual_old.fa') # blast_E6_updated.fa
+    blast_subject = os.path.join(data_dir, 'blast_E6_updated.fa')
     blast_out = os.path.join(verify_E6_dir, 'blast_result_E6.tab')
     if os.path.isfile(blast_out):
         os.remove(blast_out)
@@ -676,8 +676,8 @@ def fimo_e1bs(virus, args):
     if not os.path.isdir(fimo_dir):
         os.makedirs(fimo_dir)
 
-    background = os.path.join(data_dir, 'background_model_E1BS_old.txt')
-    motif = os.path.join(data_dir, 'E1BS_motif_old.txt')
+    background = os.path.join(data_dir, 'background_model_E1BS_new.txt')
+    motif = os.path.join(data_dir, 'E1BS_motif_new.txt')
 
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
     fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
@@ -689,7 +689,7 @@ def fimo_e1bs(virus, args):
 
     rv, out = getstatusoutput(str(cline))
     if rv != 0:
-        raise Exception('Failed to run fimo for E1BS')
+        raise Exception('Failed to run fimo for E1BS: {}'.format(out))
 
     if not os.path.isfile(fimo_out):
         logging.warning('Failed to create fimo out "{}"'.format(fimo_out))
@@ -770,7 +770,7 @@ def fimo_e2bs(virus, args):
     if not os.path.isdir(fimo_dir):
         os.makedirs(fimo_dir)
 
-    motif = os.path.join(data_dir, 'E2BS_motif_old.txt')
+    motif = os.path.join(data_dir, 'E2BS_motif_new.txt')
 
     fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
 
@@ -852,7 +852,7 @@ def blast_splice_acceptor(virus, args):
     if not os.path.isdir(splice_acceptor_dir):
         os.makedirs(splice_acceptor_dir)
 
-    blast_subject = os.path.join(data_dir, 'splice_acceptor_blast.fa')
+    blast_subject = os.path.join(data_dir, 'splice_acceptor_blast_new.fa')
     blast_out = os.path.join(splice_acceptor_dir,
                              'blast_result_splice_acceptor.tab')
 
