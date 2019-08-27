@@ -24,7 +24,7 @@ Full name is what will be printed to the screen (e.g. Human papillomavirus 16)
 
 # PuMA Output Files
 
-Within the puma_out folder, there are two folders, for_user and program files. Within the for_user folder there are:
+Within the puma_out folder, there are two folders, for_user and program_files. Within the for_user folder there are:
 * csv file containing start, stop, nucleotide and protein sequences
 * log file that has information from execution
 * a graphical output of the open reading frames and miscellaneous features 
