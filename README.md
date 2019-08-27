@@ -22,17 +22,26 @@ Short name is the abbreviation or accession number you want for output files (e.
 
 Full name is what will be printed to the screen (e.g. Human papillomavirus 16)
 
+# PuMA Output Files
+
+Within the puma_out folder, there are two folders, for_user and program files. Within the for_user folder there are:
+* csv file containing start, stop, nucleotide and protein sequences
+* log file that has information from execution
+* a graphical output of the open reading frames and miscellaneous features 
+* genbank file 
+* gff3 file 
+
 # Dependencies 
 
 Please install the following:
 
 * Python 3.x
-* Biopython
-* NCBI BLAST+ 2.7.x
+* Biopython (pip)
+* NCBI BLAST+ 2.7.x (https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
 * MEME, FIMO (https://meme-suite.org/)
 * MUSCLE (https://www.drive5.com/muscle)
-* pandas
-* matplotlib
+* pandas (pip)
+* matplotlib (pip)
 
 # PuMA Poly Release 0.1 
 
@@ -52,8 +61,8 @@ Release 0.1 (7/25/19) output is printed genome information and csv
 Please install the following:
 
 * Python 3.x
-* Biopython
-* NCBI BLAST+ 2.7.x
+* Biopython (pip)
+* NCBI BLAST+ 2.7.x (https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
 * MUSCLE (https://www.drive5.com/muscle)
 
 # Formatting Input FASTA File
