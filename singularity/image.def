@@ -5,7 +5,7 @@ From: ubuntu:latest
     PATH=/app/puma/scripts:$PATH
 
 %runscript
-    exec puma.py "$@" -d /app/puma/data_dir
+    exec run_puma.py "$@" -d /app/puma/data_dir
 
 %post
     apt-get update
@@ -13,7 +13,7 @@ From: ubuntu:latest
         wget zlib1g-dev muscle
     locale-gen en_US.UTF-8
 
-    python3 -m pip install biopython
+    python3 -m pip install biopython matplotlib pandas
 
     mkdir /app
     cd /app
