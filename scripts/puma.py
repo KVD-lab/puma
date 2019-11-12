@@ -1,9 +1,9 @@
 """
 puma library
 
-authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
+Authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 1.0 release 8/19/19
+PuMA 1.1 release 11/12/19
 """
 
 import os
@@ -263,7 +263,11 @@ def identify_main_proteins(genome, args):
                         ]
                 except AttributeError:
                     pass
-    found_proteins = verify_l1(found_proteins)
+    if 'L1' and 'L2' in found_proteins.keys():
+        found_proteins = verify_l1(found_proteins)
+    else:
+        logging.info("Start position of L1 could not be verified "
+                     "because PuMA did not find L1, L2 or both.")
     return found_proteins
 # --------------------------------------------------
 def verify_l1(virus):
@@ -1300,7 +1304,7 @@ def find_e8(virus, args, e8_start):
                 del startE8List[i]
         except IndexError:
             break
-    if len(startE8List) >= 1:
+    if len(startE8List) > 1:
         for i in range(0, len(startE8List)):
             try:
                 testStart = startE8List[i] + E1_whole[0]
@@ -1756,6 +1760,72 @@ def to_genbank(virus, for_user_dir):
     SeqIO.write(record, output_file, 'genbank')
     return
 # --------------------------------------------------
+def to_sequin(virus, for_user_dir):
+    """
+    This function uses the created genbank file to create .fsa and .tbl files to
+    help with the genbank submission process
+
+    :param virus: dictionary that has all found proteins so far and linearized
+    based on L1 genome
+    :param for_user_dir: path to the for_user dictionary that is in the puma_out
+    directory
+    :return: nothing
+    """
+    genbank = os.path.join(for_user_dir, '{}.gb'.format(virus['accession']))
+    if os.path.isfile(genbank):
+        pass
+    else:
+        logging.info("Problem with genbank file. Cannot create .fsa and .tbl files for "
+                     "genbank submission process")
+        return
+    genbank_sub_dir = os.path.join(for_user_dir, 'genbank_submission')
+    if not os.path.isdir(genbank_sub_dir):
+        os.makedirs(genbank_sub_dir)
+
+    for r in SeqIO.parse(genbank,"genbank"):
+       fasta_name = r.id + '.fsa'
+       table_name = r.id + '.tbl'
+    fasta_file = os.path.join(genbank_sub_dir, '{}'.format(fasta_name))
+    table_file = os.path.join(genbank_sub_dir, '{}'.format(table_name))
+    for r in SeqIO.parse(genbank,"genbank"):
+      with open(fasta_file, 'w') as fasta, open(table_file, 'w') as table:
+       fasta.write(">{} [organism= {}]\n{}".format(r.id,r.id,r.seq))
+       table.write(">Feature {}\n".format(r.id))
+       for (index, feature) in enumerate(r.features):
+        if feature.type ==  'CDS':
+            m=re.search('\[(\d*)\:(\d*)\]',str(feature.location))
+            if m:
+               start = int(m.groups()[0])
+               stop= int(m.groups()[1])
+            table.write("{}\t{}\tgene\n\t\t\tgene\t{}\n".format(start+1,
+                        stop,feature.qualifiers['gene'][0]))
+            table.write("{}\t{}\tCDS\n\t\t\tproduct\t{}\n\t\t\tgene\t{}\n\t\t"
+                        "\tcodon_start\t{}\n".format(int(m.groups()[0])+1, m.groups()[1],
+                        feature.qualifiers['gene'][0], feature.qualifiers['gene'][0], "1"))
+        if feature.type ==  'mRNA':
+               m=re.search('\[(\d*)\:(\d*)\].*\[(\d*)\:(\d*)\]',str(feature.location))
+               if m:
+                  start, SD, SA, stop = m.groups()[0],m.groups()[1],m.groups()[2],m.groups()[3]
+                  table.write("{}\t{}\tmRNA\n{}\t{}\n\t\t\tproduct\t{}\n"
+                              .format(int(start)+1, SD, int(SA)+1, stop,
+                                      feature.qualifiers['gene'][0]))
+        if "misc" in feature.type:
+            m=re.search('\[(\d*)\:(\d*)\]',str(feature.location))
+            if m:
+               start = int(m.groups()[0])
+               stop= int(m.groups()[1])
+               table.write("{}\t{}\tmisc_feature\n\t\t\tnote\t{}\n"
+                           .format(start+1,stop, feature.qualifiers['note'][0]))
+    read_me = os.path.join(genbank_sub_dir, 'README.txt')
+    with open(read_me, "w") as rd:
+        rd.write("The .fsa and .tbl files in this folder are for "
+                 "the genbank submission process.\n"
+                 "Please refer to https://www.ncbi.nlm.nih.gov/genbank/tbl2asn2/ to "
+                 "utilize the files created with PuMA along with user created files to "
+                 "start the genbank submission process.\n"
+                 "\n")
+    return
+# --------------------------------------------------
 def print_genome_info(virus):
     """
     This function prints all the found annotations
@@ -1860,7 +1930,6 @@ def puma_output(virus, args):
 
     :param virus: dictionary that has all found proteins so far and linearized based on L1
     genome
-    :param startE2_nt: nucleotide start position of the splice acceptor site
     :param args: command line arguments for data_dir etc
     :return: nothing
     """
@@ -1870,6 +1939,7 @@ def puma_output(virus, args):
     to_csv(virus, args['for_user_dir'])
     to_gff3(virus, args['for_user_dir'])
     to_genbank(virus, args['for_user_dir'])
+    to_sequin(virus, args['for_user_dir'])
     return
 # --------------------------------------------------
 def run(args):
@@ -1890,8 +1960,11 @@ def run(args):
     altered_genome = linearize_genome(original_genome, args)
     virus['genome'] = str(altered_genome).lower()
     virus.update(identify_main_proteins(altered_genome, args))
-    if 'E2' in virus.keys():
+    if 'E2' and 'L2' in virus.keys():
         virus.update(identify_e5_variants(virus, args))
+    else:
+        logging.info("E5 variants function not executed because PuMA did not "
+                     "find E2, L2 or both.")
     if 'E6' in virus.keys():
         verified_E6 = verify_e6(virus, args)
         del virus['E6']
@@ -1901,12 +1974,12 @@ def run(args):
     if E1BS:
         virus.update(E1BS)
     else:
-        logging.info("NO E1BS found")
+        logging.info("No E1BS found")
     E2BS = find_e2bs(virus, args)
     if len(E2BS['E2BS']) > 0:
         virus.update(E2BS)
     else:
-        logging.info("NO E2BS found")
+        logging.info("No E2BS found")
 
     if 'E2' in virus.keys():
         start_splice_site = find_splice_acceptor(virus, args)
