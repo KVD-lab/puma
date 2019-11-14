@@ -4,7 +4,7 @@
 
 Papillomavirus genome annotation tool
 
-Release 1.1 (11/12/19) added .fsa & .tbl formatted output for help with genbank submission process, significantly more robust overall
+Release 1.1 (11/14/19) added .fsa & .tbl formatted output for help with genbank submission process, significantly more robust overall
 # Authors
 
 Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
