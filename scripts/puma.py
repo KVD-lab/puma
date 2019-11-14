@@ -3,7 +3,7 @@ puma library
 
 Authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 1.1 release 11/12/19
+PuMA 1.1 release 11/14/19
 """
 
 import os
@@ -92,6 +92,7 @@ def linearize_genome(original_genome, args):
     other_nts = len(re.findall('[^ATCG]', str(original_genome), re.IGNORECASE))
     logging.warning("Number of non ACTG nucleotides found:{}".format(other_nts))
     if other_nts >= 5:
+        logging.critical("Genome has too many n nucleotides to be annotated")
         raise Exception("Genome has too many n nucleotides to be annotated")
 
     proteins = identify_main_proteins(extended_genome, args)
