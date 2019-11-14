@@ -1,16 +1,15 @@
-# PuMA Release 1.0 
+# PuMA Release 1.1 
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
 
 Papillomavirus genome annotation tool
 
+Release 1.1 (11/12/19) added .fsa & .tbl formatted output for help with genbank submission process, significantly more robust overall
 # Authors
 
 Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
 
 University of Arizona, KVD Lab & Hurwitz Lab
-
-Release 1.0 (8/19/19) added genbank formatted output, significantly more robust overall
 
 # Formatting Input FASTA File
     
@@ -30,6 +29,8 @@ Within the puma_out folder, there are two folders, for_user and program_files. W
 * a graphical output of the open reading frames and miscellaneous features 
 * genbank file 
 * gff3 file 
+* .fsa file
+* .tbl file
 
 # Dependencies 
 
