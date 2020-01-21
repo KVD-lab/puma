@@ -3,21 +3,34 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-
 ####################################
 **Welcome to PuMA's documentation!**
 ####################################
 
-PuMA's code can be found `here <https://github.com/KVD-lab/puma>`_
+
+PuMA's code can be found `here. <https://github.com/KVD-lab/puma>`_ PuMA is also available through `iMicrobe. <https://www.imicrobe.us>`_
+
+**********
+About PuMA
+**********
+
+PuMA is a pipline written in Python 3 for papillomavirus genome annotation. This pipline was created by utilizaing `Biopython <https://biopython.org>`_, `BLAST <https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs>`_, `MEME, FIMO <https://meme-suite.org/>`_, `MUSCLE <https://www.drive5.com/muscle>`_.
 
 *********
 Contents:
 *********
 .. toctree::
    :maxdepth: 2
-    
+   
+   usage
+   formatting 
    license
 
+*******
+Support
+*******
+
+For any questions, please contact Dr. Koenraad Van Doorslaer at  vandoorslaer@email.arizona.edu.
 
 Indices and tables
 ==================
