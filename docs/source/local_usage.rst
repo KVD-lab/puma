@@ -1,6 +1,8 @@
-#####
-Usage
-#####
+############################
+Local Usage (MacOS or Linux)
+############################
+
+Due to dependencies, PuMA only runs on MacOS or Linux operating systems.
 
 Make sure that `Biopython <https://biopython.org>`_, `BLAST <https://blast.ncbi.nlm.nih.gov/    Blast.cgi?PAGE_TYPE=BlastDocs>`_, `MEME, FIMO <https://meme-suite.org/>`_, `MUSCLE <https://www.drive5.com/muscle>`_, pandas (pip),  matplotlib (pip) and Python 3.x are installed.
 
@@ -17,3 +19,7 @@ PuMA execuation command:
 	./run_puma.py -i HPV16REF.fa  -d data_dir -D warning
 
 All files and folders need to be in the same location or absolute path needs to be used. For example the input file above (HPV16REF) and the 'data_dir' need to be in the same folder as 'run_puma.py' and 'puma.py'. 
+
+
+
+You can always use '-h' or '--help' on 'run_puma.py' to get a list and description of all inputs. 

@@ -14,27 +14,23 @@ PuMA's code can be found `here. <https://github.com/KVD-lab/puma>`_ PuMA is also
 About PuMA
 **********
 
-PuMA is a pipline written in Python 3 for papillomavirus genome annotation. This pipline was created by utilizaing `Biopython <https://biopython.org>`_, `BLAST <https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs>`_, `MEME, FIMO <https://meme-suite.org/>`_, `MUSCLE <https://www.drive5.com/muscle>`_.
+PuMA is a pipline written in Python 3 for papillomavirus genome annotation. This pipline was created by utilizaing `Biopython <https://biopython.org>`_, `BLAST <https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs>`_, `MEME, FIMO <https://meme-suite.org/>`_, `MUSCLE <https://www.drive5.com/muscle>`_. For more information on how PuMA works, refer to 'How PuMA Works'
 
 *********
 Contents:
 *********
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 5
    
-   usage
-   formatting 
+   local_usage
+   iMicrobe_usage
+   formatting
+   output
+   how_it_works 
    license
 
 *******
 Support
 *******
 
-For any questions, please contact Dr. Koenraad Van Doorslaer at  vandoorslaer@email.arizona.edu.
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+For any questions, please contact Dr. Koenraad Van Doorslaer at  vandoorslaer@email.arizona.edu. Or visit the KVD Lab `website <http://vandoorslaer.info>`_.
