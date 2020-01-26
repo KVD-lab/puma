@@ -1,4 +1,7 @@
+
 # PuMA Release 1.1 
+
+|docs|
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
 
