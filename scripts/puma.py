@@ -726,10 +726,10 @@ def find_e1bs(virus, args):
             if not start is None:
                 start_list_urr.append(start)
     start_urr = int(start_list_urr[0])
-    genome_start = (start_urr + virus['URR'][0])
+    genome_start = (start_urr + virus['URR'][0]) - 1
     if genome_start > genome_length:
         genome_start = genome_start - genome_length
-    genome_stop = genome_start + 19
+    genome_stop = genome_start + 20
     if genome_stop > genome_length:
         genome_stop = genome_stop - genome_length
         sequence = str(genome[int(genome_start) - 1:] +
