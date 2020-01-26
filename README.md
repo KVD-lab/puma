@@ -1,3 +1,5 @@
+[![Documentation Status](https://puma-docs.readthedocs.io/en/latest/)]
+
 # PuMA Release 1.1 
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
