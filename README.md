@@ -1,4 +1,5 @@
-[![Documentation Status](https://puma-docs.readthedocs.io/en/latest/)]
+[![Documentation Status](https://readthedocs.org/projects/puma-docs/badge/?version=latest)](https://puma-docs.readthedocs.io/en/latest/?badge=latest)
+
 
 # PuMA Release 1.1 
 
