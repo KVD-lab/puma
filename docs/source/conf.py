@@ -41,7 +41,7 @@ templates_path = ['_templates']
 exclude_patterns = []
 
 # To make index.rst master doc instead of contents.rst
-master_doc = 'contents'
+master_doc = 'index'
 
 # -- Options for HTML output -------------------------------------------------
 
