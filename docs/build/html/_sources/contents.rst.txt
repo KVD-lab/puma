@@ -7,7 +7,7 @@
 **Welcome to PuMA's documentation!**
 ************************************
 
-PuMA's code can be found `here. <https://github.com/KVD-lab/puma>`_ PuMA is also available through `iMicrobe. <https://www.imicrobe.us>`_.
+PuMA's code can be found `here. <https://github.com/KVD-lab/puma>`_ PuMA is also available through `iMicrobe. <https://www.imicrobe.us>`_
 
 **********
 About PuMA

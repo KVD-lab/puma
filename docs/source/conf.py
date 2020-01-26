@@ -40,8 +40,8 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-# To make index.rst master doc instead of contents.rst
-master_doc = 'index'
+# To make 'contents.rst' master doc instead of 'index.rst'
+master_doc = 'contents'
 
 # -- Options for HTML output -------------------------------------------------
 
