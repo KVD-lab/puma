@@ -2,7 +2,7 @@
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
 
-Papillomavirus genome annotation tool
+Papillomavirus genome annotation tool. 
 
 Release 1.1 (11/14/19) added .fsa & .tbl formatted output for help with genbank submission process, significantly more robust overall
 # Authors
