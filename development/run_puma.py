@@ -4,7 +4,8 @@ puma run file
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 1.0 release 8/15/19
+PuMA 1.0 release 8/19/19
+PuMA 1.1 Dev- genbank and fasta formats
 """
 
 import argparse
@@ -46,7 +47,7 @@ def get_args():
     parser.add_argument('-f',
                         '--format',
                         metavar='FORMAT',
-                        choices='fasta',
+                        choices=['fasta','genbank'],
                         default='fasta',
                         help='File format')
 
