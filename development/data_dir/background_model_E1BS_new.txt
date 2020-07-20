@@ -1,7 +1,7 @@
-# 0-order Markov frequencies from file /Users/joshpace/sequencesNEW_TOTAL_URR.fa
-# seqs: 481    min: 184    max: 1746    avg: 562.3    sum: 270475    alph: DNA
+# 0-order Markov frequencies from file all_new_pave_urr.fa
+# seqs: 653    min: 184    max: 1746    avg: 550.7    sum: 359599    alph: DNA
 # order 0
-A 2.925e-01
-C 2.075e-01
-G 2.075e-01
-T 2.925e-01
+A 2.943e-01
+C 2.057e-01
+G 2.057e-01
+T 2.943e-01

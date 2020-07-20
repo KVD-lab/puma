@@ -1,50 +1,12 @@
 """
-puma dev library
+puma library
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
 
-PuMA Development File
-
-
-PuMA 1.2 Alignment Verification for genes (NOT READY FOR RELEASE)
-"""
+PuMA 1.2 release 7/__/2020
 """
 
-Major differences between this file 
-and the release on GitHub (Besides experimental functions and features) is:
-
-1. This file currently takes .gb files as input
-2. The 'to_results' function is used to create ONE .fa file of results.
-   For example, when tests were ran with all the PaVE genomes the result was one
-   .fa file. This was accomplished by using the puma_vs_pave.sh script
-   
-   
-   
-   
-To change the input format from .gb to .fa format specified on GitHub, in the
-'run' function (all code needing to be changed is close together and comments
-are in the function as well):
-
-1. comment the line: name = seq_record.description.split(",")[0]
-
-2. Uncomment the line name = seq_record.description
-
-3. Comment the line: ID = seq_record.name
-
-3. In the run function, uncomment the two lines:
-        # full_name = name.split("|")[1]
-        # ID = name.split("|")[0]
-4. Change the line: 'virus['name'] = name' to  'virus['name'] = full_name'
-
-
-
-The functions below the 'run' function are the old functions used to verify E6, 
-L1  before attempting to  implement  verification of E1, E2, E7, L2 in addition
-to L1 and E6
-
-
-"""
 
 import os
 import glob
@@ -112,7 +74,6 @@ def make_l1_end(l1Result, original_genome):
         new_stop = stop + len(sequence)
         new_genome = sequence + original_genome  # Still has extra at the beginning
         new_genome = new_genome[:new_stop]
-    # else?
     elif stop == original_genome_length:
         new_genome = original_genome
     return new_genome
@@ -204,9 +165,6 @@ def run_blastp(query, subject, outfile, evalue=1e-5):
                  outfmt=6,
                  out=outfile)
     stdout, stderr = cmd()
-
-    # if stderr:
-    #     logging.warning("STDERR = ", stderr)
 
     if not os.path.isfile(outfile):
         raise Exception('No BLAST output')
@@ -306,14 +264,6 @@ def identify_main_proteins(genome, args):
                         ]
                 except AttributeError:
                     pass
-    """
-    Few lines below are commented out because of the new way of verifying L1
-    """
-    # if 'L1' and 'L2' in found_proteins.keys():
-    #     found_proteins = verify_l1(found_proteins)
-    # else:
-    #     logging.info("Start position of L1 could not be verified "
-    #                  "because PuMA did not find L1, L2 or both.")
     return found_proteins
 # --------------------------------------------------
 def blast_verify_gene(gene, accession, name, args):
@@ -371,8 +321,6 @@ def parse_blast_results_verify_gene(gene, accession, name, args):
             e_values[row[1]] = float(row[-2])
             if count > 10:
                 break
-    # NEED e value limit for each gene
-    #print ("!!!!!!!!!!!!!!!!!here!!!!!!!!!!!!!!!!!!!!!", gene)
     for genome in e_values:
         last_resort_blast_options.append(genome)
         if (e_values[genome] > float(1e-34)):
@@ -393,7 +341,7 @@ def parse_blast_results_verify_gene(gene, accession, name, args):
         blast_options = blast_options[0:10]
 
     known_gene = {}  # Stores a dictionary of the 10 closest blast results
-    csv_database = os.path.join(data_dir, 'results.csv')
+    csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
     with open(csv_database, 'r') as csvfile:
         read = csv.DictReader(csvfile,
                               fieldnames=[
@@ -484,7 +432,7 @@ def verify_gene(virus, name, args):
     alignment = align_verify_gene(gene_trans, virus['accession'], name, args)
     lengths = []
     max_num_met = ''
-    print ("###############################"+name+"###############################")
+
     for a in alignment:
         if a.id != 'unknown':
             lengths.append(len(str(a.seq).replace("-","")))
@@ -493,7 +441,6 @@ def verify_gene(virus, name, args):
             unknown_len=len(str(a.seq).replace("-",""))
             unknown_seq=a.seq
     if len(lengths) != 0:
-        #print (lengths)
         average_len = (sum(lengths)/len(lengths))
         stdev_len =  np.std(lengths)
         if stdev_len < 2:
@@ -510,64 +457,48 @@ def verify_gene(virus, name, args):
         match = re.search(r'^([-]+)', seq)
         num_dashes = 0
         if match:
-            #print (match.group())
             dash = match.group(1)
             num_dashes = len(dash)
 
         dashes[rec.id] = num_dashes
-    #print (dashes)
     for i in range(0, alignment_length):
         col = alignment[:, i]
         conserved[i] = col.count('M')
-    #print (conserved.values())
+
     x=0
     for c in conserved.values():
         if c > 2:
             if str(unknown_seq[x]) == 'M':
-                #print (unknown_seq[x:])
-                max_num_met=c
+                max_num_met = c
                 break
         x=x+1
-    #max_num_met = max(conserved.values())
     if  max_num_met != '':
         seqs_at_max = list(filter(lambda t: t[1] == max_num_met,
                                   conserved.items()))
         num_of_dashes = seqs_at_max[0][0]
         prefix = seq_by_id['unknown'][0:num_of_dashes]
         if len(prefix) * '-' == prefix:
-            print (1)
+
             actual_start = 0
         elif prefix.count('-') == 0:
-            print (2)
             actual_start = len(prefix) * 3
-            print (actual_start)
         else:
-            print (3)
             no_dashes = len(prefix.replace('-', ''))
             actual_start = no_dashes * 3
         corrected_len = unknown_len - (actual_start/3)
         low_len=average_len-(3*stdev_len)
         hi_len=average_len+(3*stdev_len)
-        #print (name, unknown_len, actual_start/3, corrected_len, low_len, hi_len)
+
         if actual_start > 12:
-            if low_len < corrected_len:
-                print ('here', corrected_len, low_len, hi_len, average_len, stdev_len)
-            else:
-                print ('here2', corrected_len, low_len, hi_len, average_len, stdev_len)
                 actual_start = 0
-        #print(f"{name}: actual start:{actual_start}")
         test_seq = gene_seq[actual_start:]
         trans = Seq(str(test_seq)).translate()
-        print (trans)
         if str(Seq(str(test_seq)).translate())[0] != 'M':
             test_trans = str(Seq(str(test_seq[3:])).translate())
             if test_trans[0] == 'M':
                 actual_start = actual_start + 3
             else:
                 actual_start = 0
-    
-        #print(f"{name}: actual start:{actual_start}")
-        ########################
         if len(trans) <= 110:
             actual_start = 0
         new_seq = gene_seq[actual_start:]
@@ -576,8 +507,6 @@ def verify_gene(virus, name, args):
             gene_all[0] + actual_start, gene_all[1],
             str(new_seq).lower(),
             Seq(str(new_seq)).translate()]
-        print(f"{name}: actual start:{actual_start}")
-    #print (verified_gene)
     return verified_gene
 # --------------------------------------------------
 def blast_e5_variants(virus, args):
@@ -983,7 +912,6 @@ def locate_known_splice_acceptor(virus, args):
                 known_E2_start = str(row["positions"])
     try:
         splice_start_genome = splice_acceptor_positions.split('+')[1]
-        print (splice_start_genome)
 
         splice_start_genome = int(str(splice_start_genome).split('..')[0])
 
@@ -995,7 +923,6 @@ def locate_known_splice_acceptor(virus, args):
         print('Query does not have E1^E4 or E8^E2')
         logging.info("Strong Possibility that there is not an E1^E4 or E8^E2 because "
                      "closest blast match does not have either.")
-    #print (splice_start_known, known_E2)
     return splice_start_known, known_E2
 # --------------------------------------------------
 def align_splice_acceptor(virus, args):
@@ -1032,7 +959,6 @@ def align_splice_acceptor(virus, args):
     cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
 
     stdout, stderr = cline()
-    #print (aligned)
     return aligned
 # --------------------------------------------------
 def find_splice_acceptor(virus, args):
@@ -1069,7 +995,7 @@ def find_splice_acceptor(virus, args):
     search_seq = unknown_seq[aligned_splice_start:aligned_splice_start +
                                                   50].replace('-', '')
     startE2_nt = re.search(search_seq, str(genome).lower()).start()
-    #print (startE2_nt)
+
     return startE2_nt
 # --------------------------------------------------
 def blast_spliced_e1_e8(virus,args):
@@ -1365,7 +1291,6 @@ def find_e8(virus, args, e8_start):
         if position.lower() in ['a', 'c', 't', 'g']:
             j = j + 1
             if j == E8_stop_known:
-                #print ("here", E8_stop_known)
                 break
     E8_stop.append(aligned_E8_stop)
     aligned_E8_stop = E8_stop[-1]
@@ -1375,10 +1300,10 @@ def find_e8(virus, args, e8_start):
     stopE8 = (stopE8_nt - E1_whole[0]) - 1
     tempStart = stopE8 - 70
     search_seq = E1_seq[tempStart:stopE8]
-    #print (search_seq)
+
     for match in re.finditer('atg', search_seq):
         startE8List.append(match.start() + tempStart)
-    #print (startE8List)
+
     for i in range(0, len(startE8List)):
         try:
             if (stopE8 - startE8List[i]) < 15:
@@ -1387,7 +1312,7 @@ def find_e8(virus, args, e8_start):
                 del startE8List[i]
         except IndexError:
             break
-    #print (startE8List)
+
     if len(startE8List) > 0:
         for i in range(0, len(startE8List)):
             try:
@@ -1405,17 +1330,12 @@ def find_e8(virus, args, e8_start):
         elif check_seq.startswith(startMotif):
             pass
         else:
-            print (e8_start)
-            print (startE8List)
-            print (E1_whole[0])
             startE8_nt = startE8List[e8_start] + E1_whole[0]
     else:
-        #break
-        print("kust nekeer vierkant mijn kloten")
         startE8_nt = E1_whole[0]
-        #break
+
     stopE8_nt = (stopE8 + E1_whole[0]) + 1
-    #print (startE8_nt, stopE8_nt)
+
     return startE8_nt, stopE8_nt
 # --------------------------------------------------
 def find_e8_e2(virus, startE2_nt, args):
@@ -1545,17 +1465,12 @@ def to_graphic(virus, for_user_dir):
     virus_copy.update(virus)
     genome_length = len(virus_copy['genome'])
     pdf_out = os.path.join(for_user_dir,'{}.pdf'.format(virus_copy['accession']))
-    color_choices = ['mediumblue',
-                     'mediumseagreen',
-                     'salmon',
-                     'gold',
-                     'darkslategrey',
-                     'saddlebrown',
-                     'mediumorchid',
-                     'lawngreen',
-                     'cyan',
-                     'indigo',
-                     'pink']
+    color_choices = ['#924900',
+                     '#490092',
+                     '#24ff24',
+                     '#ffb6db']
+
+
     fig, ax = plt.subplots()
     with PdfPages(pdf_out) as pdf:
         for gene in virus_copy:
@@ -1566,15 +1481,15 @@ def to_graphic(virus, for_user_dir):
                 if gene == 'E1BS':
                     start = virus_copy[gene][0]
                     length = virus_copy[gene][1] - virus_copy[gene][0]
-                    ax.broken_barh([(start, length)], (27, 6), facecolors='dimgray')
+                    ax.broken_barh([(start, length)], (27, 6), facecolors='#000000')
                 elif gene == 'E2BS':
                     for binding_site in virus_copy[gene]:
                         ax.broken_barh([(binding_site,12)], (12, 6),
-                                       facecolors='black')
+                                       facecolors='#004949')
                 elif gene == 'URR':
                     start = virus_copy[gene][0]
                     length = virus_copy[gene][1] - virus_copy[gene][0]
-                    ax.broken_barh([(start, length)], (42, 6), facecolors='yellow')
+                    ax.broken_barh([(start, length)], (42, 6), facecolors='#009292')
                 elif "E1^E4" in gene:
                     start_1 = virus_copy[gene][0]
                     length_1 = virus_copy[gene][1] - virus_copy[gene][0]
@@ -1583,7 +1498,7 @@ def to_graphic(virus, for_user_dir):
                     ax.broken_barh([(start_1, length_1),
                                     (start_2, length_2)],
                                     (57, 6),
-                                    facecolors='b',
+                                    facecolors='#ff6db6',
                                     label=gene)
                 elif "E8^E2" in gene:
                     start_1 = virus_copy[gene][0]
@@ -1593,7 +1508,7 @@ def to_graphic(virus, for_user_dir):
                     ax.broken_barh([(start_1, length_1),
                                        (start_2, length_2)],
                                    (50, 6),
-                                   facecolors='olive',
+                                   facecolors='#ffff6d',
                                    label=gene)
                 elif "E6" in gene:
                     start = virus_copy[gene][0]
@@ -1608,17 +1523,17 @@ def to_graphic(virus, for_user_dir):
                     if frame == 1:
                         ax.broken_barh([(start, length)],
                                        (72, 6),
-                                       facecolors='blueviolet',
+                                       facecolors='#db6d00',
                                        label=gene)
                     elif frame == 2:
                         ax.broken_barh([(start, length)],
                                        (87, 6),
-                                       facecolors='blueviolet',
+                                       facecolors='#db6d00',
                                        label=gene)
                     elif frame == 3:
                         ax.broken_barh([(start, length)],
                                        (102.5, 6),
-                                       facecolors='blueviolet',
+                                       facecolors='#db6d00',
                                        label=gene)
                 elif "E5" in gene:
                     start = virus_copy[gene][0]
@@ -1633,17 +1548,17 @@ def to_graphic(virus, for_user_dir):
                     if frame == 1:
                         ax.broken_barh([(start, length)],
                                        (72, 6),
-                                       facecolors='black',
+                                       facecolors='#006ddb',
                                        label=gene)
                     elif frame == 2:
                         ax.broken_barh([(start, length)],
                                        (87, 6),
-                                       facecolors='black',
+                                       facecolors='#006ddb',
                                        label=gene)
                     elif frame == 3:
                         ax.broken_barh([(start, length)],
                                        (102.5, 6),
-                                       facecolors='black',
+                                       facecolors='#006ddb',
                                        label=gene)
                 elif "E7" in gene:
                     start = virus_copy[gene][0]
@@ -1658,17 +1573,17 @@ def to_graphic(virus, for_user_dir):
                     if frame == 1:
                         ax.broken_barh([(start, length)],
                                        (72, 6),
-                                       facecolors='plum',
+                                       facecolors='#b66dff',
                                        label=gene)
                     elif frame == 2:
                         ax.broken_barh([(start, length)],
                                        (87, 6),
-                                       facecolors='plum',
+                                       facecolors='#b66dff',
                                        label=gene)
                     elif frame == 3:
                         ax.broken_barh([(start, length)],
                                        (102.5, 6),
-                                       facecolors='plum',
+                                       facecolors='#b66dff',
                                        label=gene)
                 elif "E1" in gene:
                     start = virus_copy[gene][0]
@@ -1683,17 +1598,17 @@ def to_graphic(virus, for_user_dir):
                     if frame == 1:
                         ax.broken_barh([(start, length)],
                                        (72, 6),
-                                       facecolors='limegreen',
+                                       facecolors='#6db6ff',
                                        label=gene)
                     elif frame == 2:
                         ax.broken_barh([(start, length)],
                                        (87, 6),
-                                       facecolors='limegreen',
+                                       facecolors='#6db6ff',
                                        label=gene)
                     elif frame == 3:
                         ax.broken_barh([(start, length)],
                                        (102.5, 6),
-                                       facecolors='limegreen',
+                                       facecolors='#6db6ff',
                                        label=gene)
                 elif "E2" in gene:
                     start = virus_copy[gene][0]
@@ -1708,17 +1623,17 @@ def to_graphic(virus, for_user_dir):
                     if frame == 1:
                         ax.broken_barh([(start, length)],
                                        (72, 6),
-                                       facecolors='skyblue',
+                                       facecolors='#b6dbff',
                                        label=gene)
                     elif frame == 2:
                         ax.broken_barh([(start, length)],
                                        (87, 6),
-                                       facecolors='skyblue',
+                                       facecolors='#b6dbff',
                                        label=gene)
                     elif frame == 3:
                         ax.broken_barh([(start, length)],
                                        (102.5, 6),
-                                       facecolors='skyblue',
+                                       facecolors='#b6dbff',
                                        label=gene)
 
                 elif "L1" in gene:
@@ -1734,17 +1649,17 @@ def to_graphic(virus, for_user_dir):
                     if frame == 1:
                         ax.broken_barh([(start, length)],
                                        (72, 6),
-                                       facecolors='darkorange',
+                                       facecolors='#984ea3',
                                        label=gene)
                     elif frame == 2:
                         ax.broken_barh([(start, length)],
                                        (87, 6),
-                                       facecolors='darkorange',
+                                       facecolors='#984ea3',
                                        label=gene)
                     elif frame == 3:
                         ax.broken_barh([(start, length)],
                                        (102.5, 6),
-                                       facecolors='darkorange',
+                                       facecolors='#984ea3',
                                        label=gene)
                 elif "L2" in gene:
                     start = virus_copy[gene][0]
@@ -1759,17 +1674,17 @@ def to_graphic(virus, for_user_dir):
                     if frame == 1:
                         ax.broken_barh([(start, length)],
                                        (72, 6),
-                                       facecolors='red',
+                                       facecolors='#920000',
                                        label=gene)
                     elif frame == 2:
                         ax.broken_barh([(start, length)],
                                        (87, 6),
-                                       facecolors='red',
+                                       facecolors='#920000',
                                        label=gene)
                     elif frame == 3:
                         ax.broken_barh([(start, length)],
                                        (102.5, 6),
-                                       facecolors='red',
+                                       facecolors='#920000',
                                        label=gene)
 
 
@@ -1861,7 +1776,6 @@ def to_csv(virus, for_user_dir):
     virus_copy.update(virus)
 
     csv_out = os.path.join(for_user_dir, '{}.csv'.format(virus_copy['accession']))
-    #csv_out = "/Users/joshpace/puma/New_PaVE_Files/all_pave.csv"
     try:
         if virus_copy['E2BS'] == ['No E2BS found']:
             del virus_copy['E2BS']
@@ -2005,10 +1919,8 @@ def to_genbank(virus, for_user_dir):
                                      type='misc_feaure', qualifiers=notes)
                 record.features.append(feature)
             else:
-                #print(gene)
                 start = virus[gene][0] -1
                 end = virus[gene][1]
-                #print(sequence_object[start:end])
                 notes = {"gene": gene, "protein_id": ID + "_" + gene,
                     "translation": sequence_object[start:end].translate()}
                 feature = SeqFeature(FeatureLocation(start=start, end=end), type='CDS',
@@ -2123,8 +2035,10 @@ def to_results(virus):
     #virus_copy['name'] = short_name
 
     results_dir = os.path.join('puma_results')
+    if not os.path.isdir(results_dir):
+        os.makedirs(results_dir)
+    results = os.path.join(results_dir, 'puma_resultsJP.fa')
 
-    results = os.path.join(results_dir, 'puma_results_verfying_all.fa')
 
     for protein in virus_copy:
         if protein == 'name':
@@ -2219,7 +2133,7 @@ def print_genome_info(virus):
                 if name != 'URR':
                     print('{} translated seqeunce:\n{}\n'.format(
                         name, virus[name][3][:-1]))
-    print("All annotations displayed above.\n")
+    print("Annotations for {} are displayed above.\n".format(virus['accession']))
     return
 # --------------------------------------------------
 def validate_args(args):
@@ -2239,21 +2153,13 @@ def validate_args(args):
     e_value = args.get('evalue')
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
-    for_user_dir = os.path.join(out_dir, 'for_user')
-    if not os.path.isdir(for_user_dir):
-        os.makedirs(for_user_dir)
-    program_dir = os.path.join(out_dir, 'program_files')
-    if not os.path.isdir(program_dir):
-        os.makedirs(program_dir)
     return {
         'input_file': input_file,
         'out_dir': out_dir,
         'data_dir': data_dir,
         'input_format': input_format,
         'min_prot_len': min_prot_len,
-        'e_value': e_value,
-        'for_user_dir': for_user_dir,
-        'program_files_dir': program_dir
+        'e_value': e_value
     }
 # --------------------------------------------------
 def puma_output(virus, args):
@@ -2273,349 +2179,107 @@ def puma_output(virus, args):
     to_gff3(virus, args['for_user_dir'])
     to_genbank(virus, args['for_user_dir'])
     to_sequin(virus, args['for_user_dir'])
-    #to_results(virus)
     return
 # --------------------------------------------------
 def run(args):
     """main"""
-    virus = {}
+    genomes_from_file = {}
+    out_dir = args['out_dir']
     logging.info('run = {}\n'.format(args))
     warnings.simplefilter('ignore', BiopythonWarning)
     args = validate_args(args)
     for seq_record in SeqIO.parse(args['input_file'], args['input_format']):
         original_genome = seq_record.seq
-        name = seq_record.description.split(",")[0] #Comment for .fa
-        print (name)
-        #name = seq_record.description #Uncomment for .fa
-        ID = seq_record.name #Comment for .fa
-    #full_name = name.split("|")[1] #Uncomment for .fa
-    #ID = name.split("|")[0] #Uncomment for .fa
-    virus['name'] =  name  # replace 'name' with 'full_name' for .fa
-    virus['accession'] = ID
-    print("\n" + ID + "\n")
-    altered_genome = linearize_genome(original_genome, args)
-    virus['genome'] = str(altered_genome).lower()
-    virus.update(identify_main_proteins(altered_genome, args))
-    if 'E1' in virus.keys():
-        verified_gene = verify_gene(virus,'E1',args)
-        del virus['E1']
-        virus['E1'] = verified_gene['E1']
-    else:
-        logging.warning("No E1 found")
+        name = seq_record.description
+        full_name = name.split("|")[1]
+        ID = name.split("|")[0]
+        genomes_from_file[ID] = [full_name, original_genome]
 
-    if 'E2' in virus.keys():
-        verified_gene = verify_gene(virus,'E2',args)
-        del virus['E2']
-        virus['E2'] = verified_gene['E2']
-    else:
-        logging.warning("No E2 found")
-    if 'E6' in virus.keys():
-        verified_gene = verify_gene(virus,'E6',args)
-        del virus['E6']
-        virus['E6'] = verified_gene['E6']
-    else:
-        logging.warning("No E6 found")
-    if 'E7' in virus.keys():
-        verified_gene = verify_gene(virus,'E7',args)
-        del virus['E7']
-        virus['E7'] = verified_gene['E7']
-    else:
-        logging.warning("No E7 found")
-    if 'L1' in virus.keys():
-        verified_gene = verify_gene(virus,'L1',args)
-        del virus['L1']
-        virus['L1'] = verified_gene['L1']
-    else:
-        logging.warning("No L1 found")
-    if 'L2' in virus.keys():
-        verified_gene = verify_gene(virus,'L2',args)
-        del virus['L2']
-        virus['L2'] = verified_gene['L2']
-    else:
-        logging.warning("No L2 found")
-    if 'E2' and 'L2' in virus.keys():
-        virus.update(identify_e5_variants(virus, args))
-    else:
-        logging.info("E5 variants function not executed because PuMA did not "
-                     "find E2, L2 or both.")
-    virus.update(find_urr(virus))
-    E1BS = find_e1bs(virus, args)
-    if E1BS:
-        virus.update(E1BS)
-    else:
-        logging.info("NO E1BS found")
-    E2BS = find_e2bs(virus, args)
-    if len(E2BS['E2BS']) > 0:
-        virus.update(E2BS)
-    else:
-        logging.info("NO E2BS found")
+    logging.info(
+        "Total of {} genome(s) in input file\n\n".format(
+            len(genomes_from_file)))
+    for name in genomes_from_file:
+        virus = {}
+        virus_dir = os.path.join(out_dir, name)
+        if not os.path.isdir(virus_dir):
+            os.makedirs(virus_dir)
+        for_user_dir = os.path.join(virus_dir, 'for_user')
+        if not os.path.isdir(for_user_dir):
+            os.makedirs(for_user_dir)
+        args['for_user_dir'] = for_user_dir
+        program_dir = os.path.join(virus_dir, 'program_files')
+        if not os.path.isdir(program_dir):
+            os.makedirs(program_dir)
+        args['program_files_dir'] = program_dir
+        logging.info("\n\nBelow, find info from annotation of {}" .format(name))
+        virus['accession'] = name
+        virus['name'] = genomes_from_file[name][0]
+        original_genome = genomes_from_file[name][1]
+        altered_genome = linearize_genome(original_genome, args)
+        virus['genome'] = str(altered_genome).lower()
+        virus.update(identify_main_proteins(altered_genome, args))
+        if 'E1' in virus.keys():
+            verified_gene = verify_gene(virus,'E1',args)
+            del virus['E1']
+            virus['E1'] = verified_gene['E1']
+        else:
+            logging.warning("No E1 found")
 
-    if 'E2' in virus.keys():
-        start_splice_site = find_splice_acceptor(virus, args)
-        if start_splice_site > 0:
-            E8_E2 = find_e8_e2(virus, start_splice_site, args)
-            if len(E8_E2['E8^E2']) > 0:
-                E1_E4 = find_e1_e4(virus, start_splice_site, args)
-                virus.update(E8_E2)
-                virus.update(E1_E4)
-    puma_output(virus,args)
+        if 'E2' in virus.keys():
+            verified_gene = verify_gene(virus,'E2',args)
+            del virus['E2']
+            virus['E2'] = verified_gene['E2']
+        else:
+            logging.warning("No E2 found")
+        if 'E6' in virus.keys():
+            verified_gene = verify_gene(virus,'E6',args)
+            del virus['E6']
+            virus['E6'] = verified_gene['E6']
+        else:
+            logging.warning("No E6 found")
+        if 'E7' in virus.keys():
+            verified_gene = verify_gene(virus,'E7',args)
+            del virus['E7']
+            virus['E7'] = verified_gene['E7']
+        else:
+            logging.warning("No E7 found")
+        if 'L1' in virus.keys():
+            verified_gene = verify_gene(virus,'L1',args)
+            del virus['L1']
+            virus['L1'] = verified_gene['L1']
+        else:
+            logging.warning("No L1 found")
+        if 'L2' in virus.keys():
+            verified_gene = verify_gene(virus,'L2',args)
+            del virus['L2']
+            virus['L2'] = verified_gene['L2']
+        else:
+            logging.warning("No L2 found")
+        if 'E2' and 'L2' in virus.keys():
+            virus.update(identify_e5_variants(virus, args))
+        else:
+            logging.info("E5 variants function not executed because PuMA did not "
+                         "find E2, L2 or both.")
+        virus.update(find_urr(virus))
+        E1BS = find_e1bs(virus, args)
+        if E1BS:
+            virus.update(E1BS)
+        else:
+            logging.info("NO E1BS found")
+        E2BS = find_e2bs(virus, args)
+        if len(E2BS['E2BS']) > 0:
+            virus.update(E2BS)
+        else:
+            logging.info("NO E2BS found")
+
+        if 'E2' in virus.keys():
+            start_splice_site = find_splice_acceptor(virus, args)
+            if start_splice_site > 0:
+                E8_E2 = find_e8_e2(virus, start_splice_site, args)
+                if len(E8_E2['E8^E2']) > 0:
+                    E1_E4 = find_e1_e4(virus, start_splice_site, args)
+                    virus.update(E8_E2)
+                    virus.update(E1_E4)
+        puma_output(virus,args)
     return 1
-
-
 # ------------------------------------------------------------------------------
-"""
-Below are the old verify_e6 functions from when we were only double checking E6 
-and verifying L1 Koenraad's way
-
-"""
-# --------------------------------------------------
-#def verify_l1(virus):
-#    """
-#    This function double checks the start position of L1, uses the motif MxxWxxxxxxYLPP
-#    to search
-#
-#    :param virus: dictionary that has the main ORFs
-#    :return: dictionary that has the main ORFs and a double checked L1
-#    """
-#    found_proteins = {}
-#    found_proteins.update(virus)
-#    L1_pre = virus['L1'][2]
-#    real_start = virus['L1'][0] - 1
-#    end = virus['L1'][1]
-#    L2 = virus['L2']
-#    splice = '(C|T)(C|T)(A|C|G|T)(C|T)AG(A)TG'
-#    spliced = re.search(splice, str(L1_pre).upper())
-#    if spliced:
-#        start_L1 = int(spliced.start()) + 6
-#        start_L1_nt = start_L1 + real_start
-#        late_gap = start_L1_nt - L2[1]
-#        if start_L1 % 3 == 0:
-#            if late_gap > 50:
-#                L1_post = L1_pre
-#                found_proteins['L1'] = [
-#                    int(start_L1),
-#                    int(end),
-#                    str(L1_post).lower(),
-#                    Seq(str(L1_post)).translate()
-#                ]
-#            else:
-#                del found_proteins['L1']
-#                L1_post = L1_pre[start_L1:]
-#                found_proteins['L1'] = [
-#                    int(real_start) + 1 + int(start_L1),
-#                    int(end),
-#                    str(L1_post).lower(),
-#                    Seq(str(L1_post)).translate()
-#                ]
-#        else:
-#            L1_post = L1_pre
-#            found_proteins['L1'] = [
-#                int(real_start) + 1,
-#                int(end),
-#                str(L1_post).lower(),
-#                Seq(str(L1_post)).translate()
-#            ]
-#    return found_proteins
-## --------------------------------------------------
-#def blast_verify_e6(virus, args):
-#    """
-#    This function blasts the found E6 against all E6s in PaVE
-#
-#    :param virus: dictionary that has all found proteins so far and linearized based on L1
-#    genome
-#    :param args: command line arguments for data_dir etc
-#    :return: file path to blast output
-#    """
-#    E6_trans = str(virus['E6'][3])
-#    out_dir = args['program_files_dir']
-#    data_dir = args['data_dir']
-#    verify_E6_dir = os.path.join(out_dir, 'verify_E6')
-#    ID = virus['accession']
-#
-#    if not os.path.isdir(verify_E6_dir):
-#        os.makedirs(verify_E6_dir)
-#    blast_subject = os.path.join(data_dir, 'blast_subject_all.fa') # blast_E6_updated.fa
-#    blast_out = os.path.join(verify_E6_dir, 'blast_result_E6.tab')
-#    if os.path.isfile(blast_out):
-#        os.remove(blast_out)
-#    query_file = os.path.join(verify_E6_dir, 'query.fa')
-#    with open(query_file, 'a') as query:
-#        query.write('>{}\n'.format(ID))
-#        query.write(E6_trans)
-#    num_hits = run_blastp(query_file, blast_subject, blast_out)
-#    return blast_out
-## --------------------------------------------------
-#def parse_blast_results_verify_e6(virus, args):
-#    """
-#    This functions parses the blast output from blast_verify_E6() for
-#    results that have an evalue less then or equal to 1e-43
-#
-#    :param virus: dictionary that has all found proteins so far and linearized based on L1
-#    genome
-#    :param args: command line arguments for data_dir etc
-#    :return: dictionary, keys are the accession number and the values are the E6
-#    sequence of identified sequences that fall at or below the evalue of 1e-43
-#    """
-#    blast_out = blast_verify_e6(virus, args)
-#    blast_options = []
-#    last_resort_blast_options = []
-#    number_over_eval = 0
-#    count = 0
-#    e_values = {}
-#    data_dir = args['data_dir']
-#
-#    with open(blast_out) as blast_file:
-#        blast_result = csv.reader(blast_file, delimiter='\t')
-#        for row in blast_result:
-#            count = count + 1
-#            e_values[row[1]] = float(row[-2])
-#            if count > 10:
-#                break
-#    for genome in e_values:
-#        last_resort_blast_options.append(genome)
-#        if (e_values[genome] > float(1e-43)):
-#            number_over_eval = number_over_eval + 1
-#        else:
-#            blast_options.append(genome)
-#    if number_over_eval > 0:
-#        logging.info("Blast results for verifying E6 fall below "
-#              "the set confidence level. "
-#              "Number found below the confidence level is:{}.".format(number_over_eval))
-#    if len(blast_options) == 0:
-#        blast_options = last_resort_blast_options[0:10]
-#    else:
-#        blast_options = blast_options[0:10]
-#    known_E6 = {}  # Stores a dictionary of the 10 closest blast results
-#    csv_database = os.path.join(data_dir, 'all_pave_new_updated.csv')
-#    with open(csv_database, 'r') as csvfile:
-#        read = csv.DictReader(csvfile,
-#                              fieldnames=[
-#                                  'accession', 'gene', 'positions', 'seq',
-#                                  'translated seq'])
-#        for row in read:
-#            if row['accession'] in blast_options and row['gene'] == 'E6':
-#                known_E6[row['accession']] = str(row['translated seq'])
-#
-#    return known_E6
-## --------------------------------------------------
-#def align_verify_e6(virus, args):
-#    """
-#    This function uses MUSCLE to align the found E6 and the E6s from the blast results
-#
-#    :param virus: dictionary that has all found proteins so far and linearized based on L1
-#    genome
-#    :param args: command line arguments for data_dir etc
-#    :return: Biopython alignment object
-#    """
-#    E6_trans = str(virus['E6'][3])
-#    out_dir = args['program_files_dir']
-#    known_E6 = parse_blast_results_verify_e6(virus, args)
-#    verify_E6_dir = os.path.join(out_dir, 'verify_E6')
-#    unaligned = os.path.join(verify_E6_dir, 'unaligned.fa')
-#    aligned = os.path.join(verify_E6_dir, 'aligned.fa')
-#
-#    if os.path.isfile(unaligned):
-#        os.remove(unaligned)
-#    if os.path.isfile(aligned):
-#        os.remove(aligned)
-#    with open(unaligned, 'a') as sequence_file:
-#        sequence_file.write(">{}\n".format('unknown'))
-#        sequence_file.write("{}\n".format(E6_trans))
-#
-#    for key in known_E6:
-#        with open(unaligned, 'a') as sequence_file:
-#            sequence_file.write(">{}\n".format(key))
-#            sequence_file.write("{}\n".format(known_E6[key]))
-#
-#    if find_executable('muscle'):
-#        cline = MuscleCommandline(input=unaligned, out=aligned, verbose=False)
-#        stdout, stderr = cline()
-#    else:
-#        raise Exception('muscle not installed')
-#
-#    alignment = AlignIO.read(aligned, 'fasta')
-#    return alignment
-# # # --------------------------------------------------
-# # def verify_e6(virus, args):
-# #     """
-# #     This function use the alignment object from align_verify_e6() to identify if the
-# #     found E6 is potentially too long at the beginning of the sequence
-# # 
-# #     :param virus: dictionary that has all found proteins so far and linearized based on L1
-# #     genome
-# #     :param args: command line arguments for data_dir etc
-# #     :return: dictionary, key is E6 and the value is a list of start and stop
-# #     positions, nucleotide seq and translated seq of the updated E6
-# #     """
-# # 
-# #     verified_E6 = {}
-# #     dashes = {}
-# #     conserved = {}
-# #     alignment = align_verify_e6(virus, args)
-# # 
-# #     alignment_length = alignment.get_alignment_length()
-# #     E6_seq = str(virus['E6'][2])
-# #     E6_whole = virus['E6']
-# #     ID = virus['accession']
-# # 
-# #     seq_by_id = dict([(rec.id, str(rec.seq)) for rec in alignment])
-# #     for i, rec in enumerate(alignment):
-# #         seq = str(rec.seq)
-# #         match = re.search(r'^([-]+)', seq)
-# #         num_dashes = 0
-# #         if match:
-# #             dash = match.group(1)
-# #             num_dashes = len(dash)
-# # 
-# #         dashes[rec.id] = num_dashes
-# # 
-# #     for i in range(0, alignment_length):
-# #         col = alignment[:, i]
-# #         conserved[i] = col.count('M')
-# # 
-# #     max_num_met = max(conserved.values())
-# #     print (max_num_met)
-# #     seqs_at_max = list(filter(lambda t: t[1] == max_num_met,
-# #                               conserved.items()))
-# #     num_of_dashes = seqs_at_max[0][0]
-# #     prefix = seq_by_id['unknown'][0:num_of_dashes]
-# #     if len(prefix) * '-' == prefix:
-# #         actual_start = 0
-# #     elif prefix.count('-') == 0:
-# #         actual_start = len(prefix) * 3
-# #     else:
-# #         no_dashes = len(prefix.replace('-', ''))
-# #         actual_start = no_dashes * 3
-# #     test_seq = E6_seq[actual_start:]
-# #     trans = Seq(str(test_seq)).translate()
-# #     if str(Seq(str(test_seq)).translate())[0] != 'M':
-# #         test_trans = str(Seq(str(test_seq[3:])).translate())
-# #         if test_trans[0] == 'M':
-# #             actual_start = actual_start + 3
-# #         else:
-# #             actual_start = 0
-# #     if len(trans) <= 110:
-# #         actual_start = 0
-# #     if len(trans) >= 184:
-# #         logging.info("E6 sequence found is longer than average")
-# #     new_seq = E6_seq[actual_start:]
-# # 
-# #     verified_E6['E6'] = [
-# #         E6_whole[0] + actual_start, E6_whole[1],
-# #         str(new_seq).lower(),
-# #         Seq(str(new_seq)).translate()]
-# # 
-# #     # print(verified_E6['E6'][0])
-# #     # print(verified_E6['E6'][1])
-# #     # print(verified_E6['E6'][2])
-# #     # print("Sequence from numbers:{}".format(virus['genome'][verified_E6['E6'][0] -1: verified_E6['E6'][1]]))
-# #     sequence_num = virus['genome'][verified_E6['E6'][0] -1: verified_E6['E6'][1]]
-# # 
-# #     if verified_E6['E6'][2] == sequence_num:
-# #         print("E6s Match")
-# #     else:
-# #         print("FILE WRITE")
-# #         with open("/Users/joshpace/Desktop/PuMA_E6.txt", "a") as f:
-# #             f.write(virus['accession'] + "\n")
-# #     return verified_E6
-# --------------------------------------------------
