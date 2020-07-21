@@ -15,7 +15,7 @@ About PuMA
 
 PuMA is a pipeline written in Python3 for papillomavirus genome annotation. 
 
-The pipline was created by utilizing several Python3 and command line packages including `Biopython <https://biopython.org>`_, `BLAST <https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs>`_, `MEME, FIMO <https://meme-suite.org/>`_, and `MUSCLE <https://www.drive5.com/muscle>`_ as well as user defined functions. For more information on how PuMA works, refer to 'How PuMA Works'.
+The pipeline was created by utilizing several Python3 and command line packages including `Biopython <https://biopython.org>`_, `BLAST <https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs>`_, `MEME, FIMO <https://meme-suite.org/>`_, and `MUSCLE <https://www.drive5.com/muscle>`_ as well as user defined functions. For more information on how PuMA works, refer to 'How PuMA Works'.
 
 *********
 Contents:
@@ -35,4 +35,4 @@ Contents:
 Support
 *******
 
-For any questions, please contact Dr. Koenraad Van Doorslaer at vandoorslaer@arizona.edu. Or visit the KVD Lab `website <http://vandoorslaer.info>`_.
+For questions, contact Dr. Koenraad Van Doorslaer via vandoorslaer AT arizona DOT edu or visit the KVD Lab `website <http://vandoorslaer.info>`_.

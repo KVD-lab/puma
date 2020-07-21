@@ -24,4 +24,4 @@ All files and folders need to be in the same location or absolute path needs to 
 
 You can always use '-h' or '--help' on 'run_puma.py' to get a list and description of all inputs. 
 
-After execution, it is encouraged to either move, rename, or delete the output folder 'puma_out' before running PuMA again. This way, there are no issues with the existing 'puma_out' folder and the new one that will be generated with each execution. 
+**After execution, it is encouraged to either move, rename, or delete the output folder 'puma_out' before running PuMA again. This way, there are no issues with the existing 'puma_out' folder and the new one that will be generated with each execution.** 

@@ -15,7 +15,7 @@ Once you have uploaded the input files in the Data Store, nagivate to 'Tools' ->
 
 
 
-iMicrobe accesses the `Extreme Science and Engineering Discovery Environment <https://www.xsede.org>`_ (XSEDE) compute resources at Texas Advanced Computing Center (TACC) including Stampede2. While this offers access to significant compute power, due the large number of users the job might be in the queue for hours. Once the job runs, it takes a few seconds for execution to complete. 
+iMicrobe accesses the `Extreme Science and Engineering Discovery Environment <https://www.xsede.org>`_ (XSEDE) compute resources at Texas Advanced Computing Center (TACC) including Stampede2. **While this offers access to significant compute power, due the large number of users the job might be in the queue for hours.** Once the job runs, it takes a few seconds for execution to complete. 
 
 
 
