@@ -46,7 +46,7 @@ Please install the following:
 * [MUSCLE](https://www.drive5.com/muscle)
 * [MEME, FIMO](http://meme-suite.org/doc/install.html?man_type=web)
 * [matplotlib (pip)](https://matplotlib.org/users/installing.html)
-* [pandas pip](https://pandas.pydata.org)
+* [pandas (pip)](https://pandas.pydata.org)
 
 # PuMA Poly Release 0.1 
 
