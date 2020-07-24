@@ -40,13 +40,13 @@ Within the puma_out folder, there is a log file that has information from execut
 
 Please install the following:
 
-* [Python 3.x] (https://www.python.org/downloads/)
-* [Biopython (pip)] (https://biopython.org/wiki/Download)
-* NCBI BLAST+ 2.7.x (https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
-* MUSCLE (https://www.drive5.com/muscle)
-* [MEME, FIMO] (http://meme-suite.org/doc/install.html?man_type=web)
-* [matplotlib (pip)] (https://matplotlib.org/users/installing.html)
-* [pandas pip] (https://pandas.pydata.org)
+* [Python 3.x](https://www.python.org/downloads/)
+* [Biopython (pip)](https://biopython.org/wiki/Download)
+* [NCBI BLAST+ 2.7.x](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
+* [MUSCLE](https://www.drive5.com/muscle)
+* [MEME, FIMO](http://meme-suite.org/doc/install.html?man_type=web)
+* [matplotlib (pip)](https://matplotlib.org/users/installing.html)
+* [pandas pip](https://pandas.pydata.org)
 
 # PuMA Poly Release 0.1 
 
@@ -65,10 +65,10 @@ Release 0.1 (7/25/19) output is printed genome information and csv
 
 Please install the following:
 
-* [Python 3.x] (https://www.python.org/downloads/)
-* [Biopython (pip)] (https://biopython.org/wiki/Download)
-* [NCBI BLAST+ 2.7.x] (https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
-* [MUSCLE] (https://www.drive5.com/muscle/downloads.htm)
+* [Python 3.x](https://www.python.org/downloads/)
+* [Biopython (pip)](https://biopython.org/wiki/Download)
+* [NCBI BLAST+ 2.7.x](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download)
+* [MUSCLE](https://www.drive5.com/muscle/downloads.htm)
 
 # Formatting Input FASTA File
     
