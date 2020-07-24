@@ -19,11 +19,15 @@ import puma
 def warn(msg):
     """Print a message to STDERR"""
     print(msg, file=sys.stderr)
+
+
 # --------------------------------------------------
 def die(msg='Something bad happened'):
     """warn() and exit with error"""
     warn(msg)
     sys.exit(1)
+
+
 # --------------------------------------------------
 def get_args():
     args = sys.argv
@@ -78,13 +82,14 @@ def get_args():
                         default=25,
                         help='Minimum protein length')
 
-    parser.add_argument('-D',
-                        '--debug_level',
-                        metavar='STR',
-                        type=str,
-                        default='critical',
-                        choices=['debug', 'info', 'warning', 'error', 'critical'],
-                        help='Debug level')
+    parser.add_argument(
+        '-D',
+        '--debug_level',
+        metavar='STR',
+        type=str,
+        default='critical',
+        choices=['debug', 'info', 'warning', 'error', 'critical'],
+        help='Debug level')
 
     parser.add_argument('-L',
                         '--log_file',
@@ -100,6 +105,8 @@ def get_args():
             args.data_dir))
 
     return args
+
+
 # --------------------------------------------------
 def main():
     """main"""
@@ -123,7 +130,9 @@ def main():
     puma.run(args)
     print("PuMA execution complete. Check output files in {}. Also check "
           "puma_execution.log for potential notes about execution.".format(
-        args['out_dir']))
+              args['out_dir']))
+
+
 # --------------------------------------------------
 if __name__ == '__main__':
     main()
