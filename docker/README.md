@@ -28,8 +28,8 @@ $ docker run --rm \
     run_puma.py -o /out/puma_out -i /development/BPV2_new.fa -d /data <5>
 ```
 
-<1> The "data_dir" dir will be mounted as "/data"
-<2> The "development" dir will be mounted as "/development"
-<3> The current directory will be mounted as "/out"
-<4> This is the tag of the Docker image to run
-<5> This is the command to execute Puma with the input and output arguments
+1. The "data_dir" dir will be mounted as "/data"
+2. The "development" dir will be mounted as "/development"
+3. The current directory will be mounted as "/out"
+4. This is the tag of the Docker image to run
+5. This is the command to execute Puma with the input and output arguments
