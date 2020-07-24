@@ -4,7 +4,7 @@ img:
 	docker build --tag=$(TAG) .
 
 shell:
-	docker run -it $(TAG) bash
+	docker run --rm -it $(TAG) /bin/bash
 
 push: 
 	docker push $(TAG)
