@@ -4,7 +4,7 @@ puma run file
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 1.1 release 11/14/19
+PuMA 1.2 release 7/24/2020
 """
 
 import argparse
@@ -112,10 +112,10 @@ def main():
         'critical': logging.CRITICAL
     }
     args = vars(args)
-    for_user_dir = os.path.join(args['out_dir'], 'for_user')
-    if not os.path.isdir(for_user_dir):
-        os.makedirs(for_user_dir)
-    log_file = os.path.join(for_user_dir, args['log_file'])
+    if not os.path.isdir(args['out_dir']):
+        os.makedirs(args['out_dir'])
+
+    log_file = os.path.join(args['out_dir'], args['log_file'])
     logging.basicConfig(level=level[args['debug_level']],
                         filename=log_file,
                         filemode='w')
@@ -123,7 +123,7 @@ def main():
     puma.run(args)
     print("PuMA execution complete. Check output files in {}. Also check "
           "puma_execution.log for potential notes about execution.".format(
-        for_user_dir))
+        args['out_dir']))
 # --------------------------------------------------
 if __name__ == '__main__':
     main()
