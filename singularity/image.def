@@ -1,5 +1,5 @@
 BootStrap: docker
-From: ubuntu:latest
+From: kvdlab/puma:1.2.0
 
 %environment
     PATH=/app/puma/scripts:$PATH
@@ -8,25 +8,6 @@ From: ubuntu:latest
     exec run_puma.py "$@" -d /app/puma/data_dir
 
 %post
-    apt-get update
-    apt-get install -y locales git python3 python3-pip ncbi-blast+ \
-        wget zlib1g-dev muscle
-    locale-gen en_US.UTF-8
-
-    python3 -m pip install biopython matplotlib pandas
-
-    mkdir /app
-    cd /app
-    git clone https://github.com/KVD-lab/puma.git
-
-    #
-    # Cf. http://meme-suite.org/doc/download.html
-    #
-    wget http://meme-suite.org/meme-software/5.0.2/meme-5.0.2.tar.gz
-    tar xvf meme-5.0.2.tar.gz
-    cd meme-5.0.2
-    ./configure --prefix=/usr/local && make && make install
-
     #
     # Mount points for TACC directories
     #
