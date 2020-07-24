@@ -2033,9 +2033,12 @@ def print_genome_info(virus):
     """
     print("\nThis is the gene information for {} after making L1 end of Genome:".
         format(virus['accession']))
-    del virus["known_E2"]
-    del virus['known_E1']
-    del virus['known_E8']
+    if "known_E2" in virus:
+        del virus["known_E2"]
+    if "known_E1":
+        del virus['known_E1']
+    if "known_E8":
+        del virus['known_E8']
     for name in virus:
         if name == 'genome':
             pass
