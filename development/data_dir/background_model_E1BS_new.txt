@@ -1,7 +1,0 @@
-# 0-order Markov frequencies from file all_new_pave_urr.fa
-# seqs: 653    min: 184    max: 1746    avg: 550.7    sum: 359599    alph: DNA
-# order 0
-A 2.943e-01
-C 2.057e-01
-G 2.057e-01
-T 2.943e-01

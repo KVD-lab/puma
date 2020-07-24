@@ -12,10 +12,11 @@ shell:
 push: 
 	docker push $(TAG)
 
+# -v $(OUT_DIR):/out \
+
 test:
 	docker run --rm \
+		-v $(DEV_DIR):/input \
 		-v $(DATA_DIR):/data \
-		-v $(DEV_DIR):/development \
-		-v $(OUT_DIR):/out \
 		$(TAG) \
-		run_puma.py -o /out -i /development/BPV2_new.fa -d /data 
+		run_puma.py -i /input/BPV2_new.fa -d /data 
