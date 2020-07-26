@@ -1,6 +1,13 @@
+PuMA 1.2.0 (7/24/2020)
+
+Authors: Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer
+
+University of Arizona, KVD Lab & Hurwitz Lab
+
+
 # How to use the Docker app
 
-Be sure you have Docker installed on your machine.
+Be sure you have Docker  [installed](https://www.docker.com/products/docker-desktop) on your machine.
 Do the following to pull the image locally:
 
 ```bash
@@ -28,6 +35,9 @@ $ docker run --rm \
 ```
 
 1. The "data_dir" dir will be mounted as "/data"
-2. The "development" dir will be mounted as "/development"
+2. The "input_and_output" dir will be mounted as "/in_out"
 3. This is the tag of the Docker image to run
 4. This is the command to execute Puma with the input and output arguments
+
+
+When running PuMA through Docker, the output argument needs to be specified ('-o'). In the above example the "input_and_output" folder represents where the input file and the "puma_out" directory is ( since it is "-o /in_out/puma_out"). 
