@@ -1,13 +1,14 @@
 [![Documentation Status](https://readthedocs.org/projects/puma-docs/badge/?version=latest)](https://puma-docs.readthedocs.io/en/latest/?badge=latest) (click to be directed to the Read the Docs documentation (more detailed)) 
 
 
-# PuMA Release 1.2 
+# PuMA Release 1.2.0 
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
+**PuMA is now available through [Docker](https://hub.docker.com/r/kvdlab/puma)
 
 Papillomavirus genome annotation tool. 
 
-Release 1.2 (7/24/2020) added gene alignment verification, ability to handle a multi genome input fasta file, and updated databases. 
+Release 1.2.0 (7/24/2020) added gene alignment verification, ability to handle a multi genome input fasta file, and updated databases. 
 # Authors
 
 Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer 
