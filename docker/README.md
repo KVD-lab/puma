@@ -16,15 +16,15 @@ usage: run_puma.py [-h] -i FILE [-f FORMAT] [-d DIR] [-o DIR] [-e FLOAT]
 run_puma.py: error: the following arguments are required: -i/--input
 ```
 
-Do run Puma on your data, you will need to [mount](https://docs.docker.com/storage/bind-mounts/) your local input and output directories.
+To run Puma on your data, you will need to [mount](https://docs.docker.com/storage/bind-mounts/) your local input and output directories.
 For instance, from within this "docker" directory, we can run the program like so:
 
 ```bash
 $ docker run --rm \
     -v `pwd`/../data_dir:/data \           <1>
-    -v `pwd`/../development:/development \ <2>
+    -v `pwd`/../input_and_output:/in_out \ <2>
     kvdlab/puma:1.2.0 \                    <3>
-    run_puma.py -o /development/puma_out -i /development/BPV2_new.fa -d /data <4>
+    run_puma.py -i /in_out/BPV2_new.fa -o /in_out/puma_out -d /data <4>
 ```
 
 1. The "data_dir" dir will be mounted as "/data"
