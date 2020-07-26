@@ -52,6 +52,8 @@ Please install the following:
 * [matplotlib (pip)](https://matplotlib.org/users/installing.html)
 * [pandas (pip)](https://pandas.pydata.org)
 
+If you do not want to install all the dependencies, consider using PuMA via [Docker](https://hub.docker.com/r/kvdlab/puma).
+
 # PuMA Poly Release 0.1 
 
 Polyomavirus genome annotation tool 
