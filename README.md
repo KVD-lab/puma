@@ -3,11 +3,13 @@
 
 # PuMA Release 1.2.0 
 
+Papillomavirus genome annotation tool.
+
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
 
-**PuMA is now available to access through [Docker](https://hub.docker.com/r/kvdlab/puma)**
+**PuMA is now available to access through [Docker].(https://hub.docker.com/r/kvdlab/puma)**
 
-Papillomavirus genome annotation tool. 
+ 
 
 Release 1.2.0 (7/24/2020) added gene alignment verification, ability to handle a multi genome input fasta file, and updated databases. 
 # Authors
