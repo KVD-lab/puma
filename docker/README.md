@@ -40,4 +40,17 @@ $ docker run --rm \
 4. This is the command to execute Puma with the input and output arguments
 
 
-When running PuMA through Docker, the output argument needs to be specified ('-o'). In the above example the "input_and_output" folder represents where the input file and the "puma_out" directory is ( since it is "-o /in_out/puma_out"). 
+When running PuMA through Docker, the output argument needs to be specified ('-o'). In the above example the "input_and_output" folder represents where the input file and the "puma_out" directory are. The output directory is "puma_out" since part of the command is "-o /in_out/puma_out".
+
+
+# Formatting Input FASTA File
+    
+    >Short name|Full Name
+    Sequence
+
+
+Short name is the abbreviation or accession number you want for output files (e.g. HPV16)
+
+Full name is what will be printed to the screen (e.g. Human papillomavirus 16)
+
+For a multi genome file, follow the same naming convention as above. 
