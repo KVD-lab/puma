@@ -3,6 +3,9 @@ Local Usage (MacOS or Linux)
 ############################
 
 
+Follow the directions below to run PuMA locally without using Docker. If you want to execute PuMA with Docker, refer to the "Usage via Docker" page.
+
+
 
 Due to dependencies, PuMA only runs on MacOS or Linux operating systems. Refer to the 'Dependency Information' section for more information. 
 
