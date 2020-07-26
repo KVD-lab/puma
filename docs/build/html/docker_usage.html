@@ -34,7 +34,8 @@
             
   <div class="section" id="usage-via-docker">
 <h1>Usage via Docker<a class="headerlink" href="#usage-via-docker" title="Permalink to this headline">¶</a></h1>
-<p>Be sure you have Docker <a class="reference external" href="https://www.docker.com/products/docker-desktop">installed</a> on your machine.
+<p><strong>Download “data_dir” from GitHub, the folder is needed as an input argument.</strong></p>
+<p>Be sure you have Docker <a class="reference external" href="https://www.docker.com/products/docker-desktop">installed</a> on your machine. No Docker account is needed.
 Do the following to pull the image locally:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">pull</span> <span class="n">kvdlab</span><span class="o">/</span><span class="n">puma</span><span class="p">:</span><span class="mf">1.2</span><span class="o">.</span><span class="mi">0</span>
 </pre></div>
@@ -46,7 +47,7 @@ usage: run_puma.py [-h] -i FILE [-f FORMAT] [-d DIR] [-o DIR] [-e FLOAT]
 run_puma.py: error: the following arguments are required: -i/--input
 </pre></div>
 </div>
-<p>To run Puma on your data, you will need to <a class="reference external" href="https://docs.docker.com/storage/bind-mounts/">mount</a> your local input and output directories.
+<p>To run Puma on your data, you will need to <a class="reference external" href="https://docs.docker.com/storage/bind-mounts/">mount</a> your local input and output direc:xtories.
 For instance, from within this “docker” directory, we can run the program like so:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker run --rm \
 -v `pwd`/../data_dir:/data \           &lt;1&gt;
@@ -61,6 +62,7 @@ run_puma.py -i /in_out/BPV2_new.fa -o /in_out/puma_out -d /data &lt;4&gt;
 <li><p>This is the tag of the Docker image to run</p></li>
 <li><p>This is the command to execute Puma with the input and output arguments</p></li>
 </ol>
+<p><strong>Be sure to avoid using a space before or after the colon when mounting the directories using the “-v” argument.</strong></p>
 <p><strong>When running PuMA through Docker, the output argument needs to be specified (‘-o’). In the above example the “input_and_output” folder represents where the input file and the “puma_out” directory are. The output directory is “puma_out” since part of the command is “-o /in_out/puma_out”. For ease of use, it is recommended that there is one folder for the input and output like the above example</strong></p>
 <p><strong>Once PuMA executes, the output folder will be in the specified local directory. For the above example, the “puma_out” folder will be in the directory “input_and_output”.</strong></p>
 </div>

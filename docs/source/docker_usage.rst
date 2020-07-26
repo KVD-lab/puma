@@ -3,9 +3,9 @@ Usage via Docker
 ################
 
 
+**Download "data_dir" from GitHub, the folder is needed as an input argument.**
 
-
-Be sure you have Docker `installed <https://www.docker.com/products/docker-desktop>`_ on your machine.
+Be sure you have Docker `installed <https://www.docker.com/products/docker-desktop>`_ on your machine. No Docker account is needed. 
 Do the following to pull the image locally:
 
 ::
@@ -21,7 +21,7 @@ Now you should be able to run the image and see the following output:
 	[-m NUM] [-D STR] [-L FILE]
 	run_puma.py: error: the following arguments are required: -i/--input
 
-To run Puma on your data, you will need to `mount <https://docs.docker.com/storage/bind-mounts/>`_ your local input and output directories.
+To run Puma on your data, you will need to `mount <https://docs.docker.com/storage/bind-mounts/>`_ your local input and output direc:xtories.
 For instance, from within this "docker" directory, we can run the program like so:
 
 ::
@@ -37,6 +37,7 @@ For instance, from within this "docker" directory, we can run the program like s
 3. This is the tag of the Docker image to run
 4. This is the command to execute Puma with the input and output arguments
 
+**Be sure to avoid using a space before or after the colon when mounting the directories using the "-v" argument.**
 
 **When running PuMA through Docker, the output argument needs to be specified ('-o'). In the above example the "input_and_output" folder represents where the input file and the "puma_out" directory are. The output directory is "puma_out" since part of the command is "-o /in_out/puma_out". For ease of use, it is recommended that there is one folder for the input and output like the above example**
 
