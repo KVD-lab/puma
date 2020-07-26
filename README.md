@@ -4,7 +4,8 @@
 # PuMA Release 1.2.0 
 
 **PuMA is now available to access through [iMicrobe](https://www.imicrobe.us).**
-**PuMA is now available through [Docker](https://hub.docker.com/r/kvdlab/puma)
+
+**PuMA is now available to access through [Docker](https://hub.docker.com/r/kvdlab/puma)**
 
 Papillomavirus genome annotation tool. 
 
