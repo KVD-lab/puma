@@ -25,6 +25,7 @@ Contents:
 
    dependencies
    local_usage
+   docker_usage
    iMicrobe_usage
    formatting
    output

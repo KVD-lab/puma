@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>Usage via Docker &#8212; PuMA 1.1 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Usage via iMicrobe" href="iMicrobe_usage.html" />
+    <link rel="prev" title="Local Usage (MacOS or Linux)" href="local_usage.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="usage-via-docker">
+<h1>Usage via Docker<a class="headerlink" href="#usage-via-docker" title="Permalink to this headline">¶</a></h1>
+<p>Be sure you have Docker <a class="reference external" href="https://www.docker.com/products/docker-desktop">installed</a> on your machine.
+Do the following to pull the image locally:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docker</span> <span class="n">pull</span> <span class="n">kvdlab</span><span class="o">/</span><span class="n">puma</span><span class="p">:</span><span class="mf">1.2</span><span class="o">.</span><span class="mi">0</span>
+</pre></div>
+</div>
+<p>Now you should be able to run the image and see the following output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker run --rm -it kvdlab/puma:1.2.0
+usage: run_puma.py [-h] -i FILE [-f FORMAT] [-d DIR] [-o DIR] [-e FLOAT]
+[-m NUM] [-D STR] [-L FILE]
+run_puma.py: error: the following arguments are required: -i/--input
+</pre></div>
+</div>
+<p>To run Puma on your data, you will need to <a class="reference external" href="https://docs.docker.com/storage/bind-mounts/">mount</a> your local input and output directories.
+For instance, from within this “docker” directory, we can run the program like so:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker run --rm \
+-v `pwd`/../data_dir:/data \           &lt;1&gt;
+-v `pwd`/../input_and_output:/in_out \ &lt;2&gt;
+kvdlab/puma:1.2.0 \                    &lt;3&gt;
+run_puma.py -i /in_out/BPV2_new.fa -o /in_out/puma_out -d /data &lt;4&gt;
+</pre></div>
+</div>
+<ol class="arabic simple">
+<li><p>The “data_dir” dir will be mounted as “/data”</p></li>
+<li><p>The “input_and_output” dir will be mounted as “/in_out”</p></li>
+<li><p>This is the tag of the Docker image to run</p></li>
+<li><p>This is the command to execute Puma with the input and output arguments</p></li>
+</ol>
+<p><strong>When running PuMA through Docker, the output argument needs to be specified (‘-o’). In the above example the “input_and_output” folder represents where the input file and the “puma_out” directory are. The output directory is “puma_out” since part of the command is “-o /in_out/puma_out”. For ease of use, it is recommended that there is one folder for the input and output like the above example</strong></p>
+<p><strong>Once PuMA executes, the output folder will be in the specified local directory. For the above example, the “puma_out” folder will be in the directory “input_and_output”.</strong></p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">PuMA</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="dependencies.html">Dependency Information</a></li>
+<li class="toctree-l1"><a class="reference internal" href="local_usage.html">Local Usage (MacOS or Linux)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Usage via Docker</a></li>
+<li class="toctree-l1"><a class="reference internal" href="iMicrobe_usage.html">Usage via iMicrobe</a></li>
+<li class="toctree-l1"><a class="reference internal" href="formatting.html">Input File formatting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how_it_works.html">How PuMA Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="local_usage.html" title="previous chapter">Local Usage (MacOS or Linux)</a></li>
+      <li>Next: <a href="iMicrobe_usage.html" title="next chapter">Usage via iMicrobe</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/docker_usage.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
