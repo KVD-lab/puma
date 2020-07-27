@@ -2035,9 +2035,9 @@ def print_genome_info(virus):
         format(virus['accession']))
     if "known_E2" in virus:
         del virus["known_E2"]
-    if "known_E1":
+    if "known_E1" in virus:
         del virus['known_E1']
-    if "known_E8":
+    if "known_E8" in virus:
         del virus['known_E8']
     for name in virus:
         if name == 'genome':
