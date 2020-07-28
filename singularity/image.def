@@ -1,5 +1,5 @@
 BootStrap: docker
-From: kvdlab/puma:1.2.0
+From: kvdlab/puma:1.2.1
 
 %environment
     PATH=/app/puma/scripts:$PATH
