@@ -41,7 +41,7 @@ Do the following to pull the image locally:</p>
 </pre></div>
 </div>
 <p>Now you should be able to run the image and see the following output:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker run --rm -it kvdlab/puma:1.2.0
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker run --rm -it kvdlab/puma:1.2.1
 usage: run_puma.py [-h] -i FILE [-f FORMAT] [-d DIR] [-o DIR] [-e FLOAT]
 [-m NUM] [-D STR] [-L FILE]
 run_puma.py: error: the following arguments are required: -i/--input
@@ -52,7 +52,7 @@ For instance, from within this “docker” directory, we can run the program li
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ docker run --rm \
 -v `pwd`/../data_dir:/data \           &lt;1&gt;
 -v `pwd`/../input_and_output:/in_out \ &lt;2&gt;
-kvdlab/puma:1.2.0 \                    &lt;3&gt;
+kvdlab/puma:1.2.1 \                    &lt;3&gt;
 run_puma.py -i /in_out/BPV2_new.fa -o /in_out/puma_out -d /data &lt;4&gt;
 </pre></div>
 </div>
