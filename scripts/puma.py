@@ -11,7 +11,7 @@ github: https://github.com/KVD-lab/puma
 
 Contact Dr. Koenraad Van Doorslaer at vandoorslaer@arizona.edu
 
-PuMA 1.2 release 7/24/2020
+PuMA 1.2.1 release 7/28/2020
 """
 
 
