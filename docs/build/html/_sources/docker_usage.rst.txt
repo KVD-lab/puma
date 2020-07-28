@@ -10,7 +10,7 @@ Do the following to pull the image locally:
 
 ::
 
-	docker pull kvdlab/puma:1.2.0
+	docker pull kvdlab/puma:1.2.1
 
 Now you should be able to run the image and see the following output:
 
