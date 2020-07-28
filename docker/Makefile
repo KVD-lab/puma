@@ -1,4 +1,4 @@
-TAG = kvdlab/puma:1.2.0
+TAG = kvdlab/puma:1.2.1
 DATA_DIR = $(shell pwd)/../data_dir
 DEV_DIR = $(shell pwd)/../development
 
