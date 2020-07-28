@@ -4,7 +4,7 @@ puma run file
 
 authors: Josh Pace, Ken Youens-Clark, Cordell Freeman, Koenraad Van Doorslaer
 University of Arizona, KVD Lab & Hurwitz Lab
-PuMA 1.2 release 7/24/2020
+PuMA 1.2.1 release 7/28/2020
 """
 
 import argparse
