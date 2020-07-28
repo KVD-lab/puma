@@ -1,4 +1,4 @@
-PuMA 1.2.0 (7/24/2020)
+PuMA 1.2.1 (7/28/2020)
 
 Authors: Josh Pace, Ken Younes-Clark, Cordell Freeman, Koenraad Van Doorslaer
 
@@ -11,7 +11,7 @@ Be sure you have Docker  [installed](https://www.docker.com/products/docker-desk
 Do the following to pull the image locally:
 
 ```bash
-docker pull kvdlab/puma:1.2.0
+docker pull kvdlab/puma:1.2.1
 ```
 
 Now you should be able to run the image and see the following output:
