@@ -17,7 +17,7 @@ docker pull kvdlab/puma:1.2.1
 Now you should be able to run the image and see the following output:
 
 ```bash
-$ docker run --rm -it kvdlab/puma:1.2.0
+$ docker run --rm -it kvdlab/puma:1.2.1
 usage: run_puma.py [-h] -i FILE [-f FORMAT] [-d DIR] [-o DIR] [-e FLOAT]
                    [-m NUM] [-D STR] [-L FILE]
 run_puma.py: error: the following arguments are required: -i/--input
@@ -30,7 +30,7 @@ For instance, from within this "docker" directory, we can run the program like s
 $ docker run --rm \
     -v `pwd`/../data_dir:/data \           <1>
     -v `pwd`/../input_and_output:/in_out \ <2>
-    kvdlab/puma:1.2.0 \                    <3>
+    kvdlab/puma:1.2.1 \                    <3>
     run_puma.py -i /in_out/BPV2_new.fa -o /in_out/puma_out -d /data <4>
 ```
 
