@@ -11,7 +11,8 @@ github: https://github.com/KVD-lab/puma
 
 Contact Dr. Koenraad Van Doorslaer at vandoorslaer@arizona.edu
 
-PuMA 1.2.1 release 7/28/2020
+PuMA 1.2.2 release 7/28/2023
+This release fixes a weird bug with the recircularization
 """
 
 
@@ -62,6 +63,7 @@ def make_l1_end(l1Result, original_genome):
     """
     start = l1Result[0]
     stop = l1Result[1]
+    #print (l1Result)
     new_genome = ''
     original_genome_length = len(original_genome)
     #When gene wraps around
@@ -71,7 +73,10 @@ def make_l1_end(l1Result, original_genome):
         new_start = len(sequence)
         new_genome = new_genome[new_start + 1:]
     elif start > original_genome_length and stop > original_genome_length: #No wrap around
+        
+        start = start -  original_genome_length
         stop = stop - original_genome_length
+        #print (start, stop, original_genome_length)
         sequence = original_genome[stop + 1:]
         new_genome = sequence + original_genome  # Still has extra at the beginning
         new_stop = stop + len(sequence)
@@ -98,6 +103,7 @@ def linearize_genome(original_genome, args):
 
     orignal_genome_len = len(original_genome)
     extended_genome = original_genome + original_genome[:2000]
+    extended_genome = original_genome# + original_genome[:2000]
     other_nts = len(re.findall('[^ATCG]', str(original_genome), re.IGNORECASE))
     if other_nts > 0:
         logging.warning("Number of non ACTG nucleotides found:{}".format(other_nts))
@@ -122,8 +128,10 @@ def linearize_genome(original_genome, args):
         raise Exception(
             "Genome Lengths do not match, there was a problem linearizing "
             "genome")
-
+    
+    #print (altered_genome)
     return altered_genome
+    
 # --------------------------------------------------
 def trans_orf(seq, min_protein_length):
     """
@@ -272,7 +280,7 @@ def identify_main_proteins(genome, args):
                         ]
                 except AttributeError:
                     pass
-
+    #print (found_proteins['L1'])
     return found_proteins
 # --------------------------------------------------
 def blast_verify_gene(gene, accession, name, args):
@@ -630,6 +638,7 @@ def find_urr(virus):
     blasted = {}
     blasted.update(virus)
     altered_genome = blasted['genome']
+    #print (len(altered_genome))
     del blasted['name']
     del blasted['accession']
     del blasted['genome']
@@ -661,9 +670,10 @@ def find_urr(virus):
     else:
         urr_found = str(altered_genome[urr_start - 1:] +
                         altered_genome[:urr_stop]).lower()
+        #print (urr_found)
         urr['URR'] = [
             int(urr_start),
-            int(genomelen), 1,
+            int(altered_genome_len), 1,
             int(urr_stop), urr_found]
     return urr
 # --------------------------------------------------
@@ -701,11 +711,12 @@ def fimo_e1bs(virus, args):
     fimo_cmd = '{} --oc {} --norc --verbosity 1 --thresh 1.0E-1 --bgfile {} {} {}'
     fimo_out = os.path.join(fimo_dir, 'fimo.tsv')
 
+
     if os.path.isfile(fimo_out):
         os.remove(fimo_out)
 
     cline = (fimo_cmd.format(fimo_exe, fimo_dir, background, motif, tmp))
-
+    #print (cline)
     rv, out = getstatusoutput(str(cline))
     if rv != 0:
         raise Exception('Failed to run fimo for E1BS')
@@ -2060,7 +2071,7 @@ def print_genome_info(virus):
                 print('\n{} start and stop position:\n{},{},{},{}\n'.format(
                     name, virus[name][0], virus[name][1], virus[name][2],
                     virus[name][3]))
-                print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
+                print('{} sequence:\n{}\n'.format(name, virus[name][4]))
             else:
                 print('\n{} start and stop position:\n{},{}\n'.format(
                     name, virus[name][0], virus[name][1]))
@@ -2072,7 +2083,7 @@ def print_genome_info(virus):
                         '\n{} start and stop position:\n{},{},{},{}\n'.format(
                             name, virus[name][0], virus[name][1],
                             virus[name][2], virus[name][3]))
-                    print('{} seqeunce:\n{}\n'.format(name, virus[name][4]))
+                    print('{} sequence:\n{}\n'.format(name, virus[name][4]))
                     if name != 'URR':
                         print('{} translated sequence:\n{}\n'.format(
                             name, virus[name][5][:-1]))
@@ -2088,7 +2099,7 @@ def print_genome_info(virus):
                     name, virus[name][0], virus[name][1]))
                 print('{} sequence:\n{}\n'.format(name, virus[name][2]))
                 if name != 'URR':
-                    print('{} translated seqeunce:\n{}\n'.format(
+                    print('{} translated sequence:\n{}\n'.format(
                         name, virus[name][3][:-1]))
     print("All annotations displayed above.\n")
     return
