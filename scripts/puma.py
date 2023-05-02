@@ -18,7 +18,7 @@ PuMA 1.2.3 release 5/2/2023
 This release 
 	1) fixes a bug in the numbering of E2BS
 	2) removes the reliance on Bio.Alphabet
-	3) updates the version of Muscle used
+	3) updates the version of Muscle to 5.1
 """
 
 
